@@ -1,21 +1,141 @@
+import { Group, ListGroup } from '@bpmn-io/properties-panel';
 import { ZenFormProps } from './parts/ZenFormProps';
+import { TaskDefinitionProps, isServiceTaskLike } from './parts/TaskDefinitionProps';
+import { AssignmentDefinitionProps } from './parts/AssignmentDefinitionProps';
+import { TaskScheduleProps } from './parts/TaskScheduleProps';
+import { CalledElementProps } from './parts/CalledElementProps';
+import { CalledDecisionProps } from './parts/CalledDecisionProps';
+import { VersionTagProps } from './parts/VersionTagProps';
+import { MultiInstanceProps } from './parts/MultiInstanceProps';
+import { createInputMappingGroup, createOutputMappingGroup } from './parts/IoMappingProps';
+import { ConditionExpressionProps } from './parts/ConditionExpressionProps';
+
+const PROVIDER_PRIORITY = 500;
 
 export class ZenBpmPropertiesProvider {
-  static $inject = ['propertiesPanel'];
+  static $inject = ['propertiesPanel', 'injector'];
 
-  constructor(propertiesPanel) {
-    propertiesPanel.registerProvider(500, this);
+  private _injector: any;
+
+  constructor(propertiesPanel: any, injector: any) {
+    this._injector = injector;
+    propertiesPanel.registerProvider(PROVIDER_PRIORITY, this);
   }
 
-  getGroups(element) {
-    return function (groups) {
+  getGroups(element: any) {
+    return (groups: any[]) => {
+      const translate = this._injector.get('translate');
+
+      // ── Task Definition ──────────────────────────────────────────────────
+      if (isServiceTaskLike(element)) {
+        groups.push({
+          id: 'zenbpm-taskDefinition',
+          label: translate('Task definition'),
+          entries: TaskDefinitionProps(element),
+          component: Group,
+        });
+      }
+
+      // ── Called Decision ──────────────────────────────────────────────────
+      if (element.type === 'bpmn:BusinessRuleTask') {
+        groups.push({
+          id: 'zenbpm-calledDecision',
+          label: translate('Called decision'),
+          entries: CalledDecisionProps(element),
+          component: Group,
+        });
+      }
+
+      // ── Called Element ───────────────────────────────────────────────────
+      if (element.type === 'bpmn:CallActivity') {
+        groups.push({
+          id: 'zenbpm-calledElement',
+          label: translate('Called element'),
+          entries: CalledElementProps(element),
+          component: Group,
+        });
+      }
+
+      // ── Assignment Definition ────────────────────────────────────────────
+      if (element.type === 'bpmn:UserTask') {
+        groups.push({
+          id: 'zenbpm-assignmentDefinition',
+          label: translate('Assignment'),
+          entries: AssignmentDefinitionProps(element),
+          component: Group,
+        });
+      }
+
+      // ── Task Schedule ────────────────────────────────────────────────────
+      if (element.type === 'bpmn:UserTask') {
+        groups.push({
+          id: 'zenbpm-taskSchedule',
+          label: translate('Task schedule'),
+          entries: TaskScheduleProps(element),
+          component: Group,
+        });
+      }
+
+      // ── Input mapping ────────────────────────────────────────────────────
+      const inputGroup = createInputMappingGroup(element, this._injector);
+      if (inputGroup) groups.push(inputGroup);
+
+      // ── Output mapping ───────────────────────────────────────────────────
+      const outputGroup = createOutputMappingGroup(element, this._injector);
+      if (outputGroup) groups.push(outputGroup);
+
+      // ── Multi-Instance ───────────────────────────────────────────────────
+      const multiInstanceEntries = MultiInstanceProps(element);
+      if (multiInstanceEntries.length) {
+        const existingGroup = groups.find((g: any) => g.id === 'multiInstance');
+        if (existingGroup) {
+          existingGroup.entries = [...existingGroup.entries, ...multiInstanceEntries];
+        } else {
+          groups.push({
+            id: 'multiInstance',
+            label: translate('Multi-instance'),
+            entries: multiInstanceEntries,
+            component: Group,
+          });
+        }
+      }
+
+      // ── Condition expression ─────────────────────────────────────────────
+      const conditionEntries = ConditionExpressionProps(element);
+      if (conditionEntries.length) {
+        const conditionGroup = groups.find((g: any) => g.id === 'condition');
+        if (conditionGroup) {
+          conditionGroup.entries = [...conditionGroup.entries, ...conditionEntries];
+        } else {
+          groups.push({
+            id: 'zenbpm-condition',
+            label: translate('Condition'),
+            entries: conditionEntries,
+            component: Group,
+          });
+        }
+      }
+
+      // ── Version Tag ──────────────────────────────────────────────────────
+      if (element.type === 'bpmn:Process') {
+        groups.push({
+          id: 'zenbpm-versionTag',
+          label: translate('Version tag'),
+          entries: VersionTagProps(element),
+          component: Group,
+        });
+      }
+
+      // ── Zen Form ─────────────────────────────────────────────────────────
       if (element.type === 'bpmn:UserTask') {
         groups.push({
           id: 'zenbpm-form',
-          label: 'Zen Form',
+          label: translate('Zen Form'),
           entries: ZenFormProps(element),
+          component: Group,
         });
       }
+
       return groups;
     };
   }

@@ -1,5 +1,6 @@
 export declare class ZenBpmPropertiesProvider {
     static $inject: string[];
-    constructor(propertiesPanel: any);
-    getGroups(element: any): (groups: any) => any;
+    private _injector;
+    constructor(propertiesPanel: any, injector: any);
+    getGroups(element: any): (groups: any[]) => any[];
 }

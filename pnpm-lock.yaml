@@ -1027,4 +1027,6 @@ snapshots:
 
   zeebe-bpmn-moddle@1.14.0: {}
 
-  zenbpm-bpmn-moddle@file:../zenbpm-bpmn-moddle: {}
+  zenbpm-bpmn-moddle@file:../zenbpm-bpmn-moddle:
+    dependencies:
+      zeebe-bpmn-moddle: 1.14.0
