@@ -33,13 +33,20 @@ function makeParamEntry(id: string, labelKey: string, prop: 'source' | 'target',
     const translate    = useService('translate');
     const debounce     = useService('debounceInput');
 
-    const getValue = () => (param as any)[prop] || '';
-    const setValue = (value: string) =>
+    const getValue = () => {
+      let val = (param as any)[prop] || '';
+      if (prop === 'source' && val && !val.startsWith('=')) {
+        val = '=' + val;
+      }
+      return val;
+    };
+    const setValue = (value: string) => {
       commandStack.execute('element.updateModdleProperties', {
         element,
         moddleElement: param,
         properties: { [prop]: value },
       });
+    };
 
     return prop === 'source'
       ? FeelEntry({ element, id, label: translate(labelKey), feel: 'required', getValue, setValue, debounce })

@@ -488,12 +488,20 @@ function makeParamEntry(id, labelKey, prop, element, param) {
         const commandStack = useService('commandStack');
         const translate = useService('translate');
         const debounce = useService('debounceInput');
-        const getValue = () => param[prop] || '';
-        const setValue = (value) => commandStack.execute('element.updateModdleProperties', {
-            element,
-            moddleElement: param,
-            properties: { [prop]: value },
-        });
+        const getValue = () => {
+            let val = param[prop] || '';
+            if (prop === 'source' && val && !val.startsWith('=')) {
+                val = '=' + val;
+            }
+            return val;
+        };
+        const setValue = (value) => {
+            commandStack.execute('element.updateModdleProperties', {
+                element,
+                moddleElement: param,
+                properties: { [prop]: value },
+            });
+        };
         return prop === 'source'
             ? FeelEntry({ element, id, label: translate(labelKey), feel: 'required', getValue, setValue, debounce })
             : TextFieldEntry({ element, id, label: translate(labelKey), getValue, setValue, debounce });
