@@ -1,7 +1,7 @@
 import { createElement } from '@bpmn-io/properties-panel/preact';
 import { useService } from 'bpmn-js-properties-panel';
 
-export function ZenFormProps(element) {
+export function ZenFormProps(element: any) {
   if (element.type !== 'bpmn:UserTask') {
     return [];
   }
@@ -15,18 +15,18 @@ export function ZenFormProps(element) {
   ];
 }
 
-function getZenFormValue(element) {
+function getZenFormValue(element: any): string {
   const bo = element.businessObject;
   const extensionElements = bo.extensionElements;
   if (!extensionElements) return '';
 
   const ioMapping = extensionElements.values?.find(
-    (e) => e.$type === 'zenbpm:IoMapping',
+    (e: any) => e.$type === 'zenbpm:IoMapping',
   );
   if (!ioMapping) return '';
 
   const input = (ioMapping.inputParameters || []).find(
-    (p) => p.target === 'ZEN_FORM',
+    (p: any) => p.target === 'ZEN_FORM',
   );
   if (!input?.source) return '';
 
@@ -38,7 +38,7 @@ function getZenFormValue(element) {
   return src;
 }
 
-function ZenFormDesignButtonEntry(props) {
+function ZenFormDesignButtonEntry(props: any) {
   const { element } = props;
   const translate = useService('translate');
 

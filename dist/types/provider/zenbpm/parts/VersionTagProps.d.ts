@@ -2,6 +2,6 @@ declare function VersionTagEntry(props: any): any;
 export declare function VersionTagProps(element: any): {
     id: string;
     component: typeof VersionTagEntry;
-    isEdited: any;
+    isEdited: import("@bpmn-io/properties-panel").IsEditedFn;
 }[];
 export {};

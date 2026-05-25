@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "es2022",
     "module": "esnext",
-    "moduleResolution": "node10",
+    "moduleResolution": "bundler",
     "declaration": true,
     "declarationDir": "./dist/types",
     "outDir": "./dist",

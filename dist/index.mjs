@@ -494,7 +494,9 @@ function makeParamEntry(id, labelKey, prop, element, param) {
             moddleElement: param,
             properties: { [prop]: value },
         });
-        return TextFieldEntry({ element, id, label: translate(labelKey), getValue, setValue, debounce });
+        return prop === 'source'
+            ? FeelEntry({ element, id, label: translate(labelKey), feel: 'required', getValue, setValue, debounce })
+            : TextFieldEntry({ element, id, label: translate(labelKey), getValue, setValue, debounce });
     };
 }
 function addParam(element, bo, bpmnFactory, commandStack, paramType, listProp) {
@@ -538,7 +540,7 @@ function createInputMappingGroup(element, injector) {
             id,
             label: input.target || translate('<empty>'),
             entries: [
-                { id: `${id}-source`, component: makeParamEntry(`${id}-source`, 'Source expression', 'source', element, input), isEdited: isTextFieldEntryEdited },
+                { id: `${id}-source`, component: makeParamEntry(`${id}-source`, 'Source expression', 'source', element, input), isEdited: isFeelEntryEdited },
                 { id: `${id}-target`, component: makeParamEntry(`${id}-target`, 'Target variable', 'target', element, input), isEdited: isTextFieldEntryEdited },
             ],
             autoFocusEntry: `${id}-target`,
@@ -568,7 +570,7 @@ function createOutputMappingGroup(element, injector) {
             id,
             label: output.target || translate('<empty>'),
             entries: [
-                { id: `${id}-source`, component: makeParamEntry(`${id}-source`, 'Source expression', 'source', element, output), isEdited: isTextFieldEntryEdited },
+                { id: `${id}-source`, component: makeParamEntry(`${id}-source`, 'Source expression', 'source', element, output), isEdited: isFeelEntryEdited },
                 { id: `${id}-target`, component: makeParamEntry(`${id}-target`, 'Target variable', 'target', element, output), isEdited: isTextFieldEntryEdited },
             ],
             autoFocusEntry: `${id}-target`,

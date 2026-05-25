@@ -1,7 +1,9 @@
 import {
   TextFieldEntry,
+  FeelEntry,
   ListGroup,
   isTextFieldEntryEdited,
+  isFeelEntryEdited
 } from '@bpmn-io/properties-panel';
 import { useService } from 'bpmn-js-properties-panel';
 import { getExtensionElement } from '../../../util/ExtensionElementsUtil';
@@ -39,7 +41,9 @@ function makeParamEntry(id: string, labelKey: string, prop: 'source' | 'target',
         properties: { [prop]: value },
       });
 
-    return TextFieldEntry({ element, id, label: translate(labelKey), getValue, setValue, debounce });
+    return prop === 'source'
+      ? FeelEntry({ element, id, label: translate(labelKey), feel: 'required', getValue, setValue, debounce })
+      : TextFieldEntry({ element, id, label: translate(labelKey), getValue, setValue, debounce });
   };
 }
 
@@ -100,7 +104,7 @@ export function createInputMappingGroup(element: any, injector: any): any | null
       id,
       label: input.target || translate('<empty>'),
       entries: [
-        { id: `${id}-source`, component: makeParamEntry(`${id}-source`, 'Source expression', 'source', element, input), isEdited: isTextFieldEntryEdited },
+        { id: `${id}-source`, component: makeParamEntry(`${id}-source`, 'Source expression', 'source', element, input), isEdited: isFeelEntryEdited },
         { id: `${id}-target`, component: makeParamEntry(`${id}-target`, 'Target variable',   'target', element, input), isEdited: isTextFieldEntryEdited },
       ],
       autoFocusEntry: `${id}-target`,
@@ -134,7 +138,7 @@ export function createOutputMappingGroup(element: any, injector: any): any | nul
       id,
       label: output.target || translate('<empty>'),
       entries: [
-        { id: `${id}-source`, component: makeParamEntry(`${id}-source`, 'Source expression', 'source', element, output), isEdited: isTextFieldEntryEdited },
+        { id: `${id}-source`, component: makeParamEntry(`${id}-source`, 'Source expression', 'source', element, output), isEdited: isFeelEntryEdited },
         { id: `${id}-target`, component: makeParamEntry(`${id}-target`, 'Target variable',   'target', element, output), isEdited: isTextFieldEntryEdited },
       ],
       autoFocusEntry: `${id}-target`,
