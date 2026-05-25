@@ -6,6 +6,7 @@ import {
 } from '@bpmn-io/properties-panel';
 import { useService } from 'bpmn-js-properties-panel';
 import { getExtensionElement, updateExtensionElementProps } from '../../../util/ExtensionElementsUtil';
+import { getFormalExpressionValue, setFormalExpression } from '../../../util/FeelUtil';
 
 const TYPE = 'zenbpm:LoopCharacteristics';
 
@@ -142,24 +143,10 @@ function CompletionConditionEntry(props: any) {
 
   const lc = getMultiInstanceLoopCharacteristics(element)!;
 
-  const getValue = () => lc.completionCondition?.body ?? '';
+  const getValue = () => getFormalExpressionValue(lc.completionCondition);
 
-  const setValue = (value: string) => {
-    if (!value) {
-      commandStack.execute('element.updateModdleProperties', {
-        element, moddleElement: lc, properties: { completionCondition: undefined },
-      });
-    } else if (lc.completionCondition) {
-      commandStack.execute('element.updateModdleProperties', {
-        element, moddleElement: lc.completionCondition, properties: { body: value },
-      });
-    } else {
-      const expr = bpmnFactory.create('bpmn:FormalExpression', { body: value });
-      commandStack.execute('element.updateModdleProperties', {
-        element, moddleElement: lc, properties: { completionCondition: expr },
-      });
-    }
-  };
+  const setValue = (value: string) =>
+    setFormalExpression(element, lc, 'completionCondition', value, bpmnFactory, commandStack);
 
   return FeelEntry({
     element,

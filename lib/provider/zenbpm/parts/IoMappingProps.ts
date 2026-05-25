@@ -7,6 +7,7 @@ import {
 } from '@bpmn-io/properties-panel';
 import { useService } from 'bpmn-js-properties-panel';
 import { getExtensionElement } from '../../../util/ExtensionElementsUtil';
+import { getFeelValue } from '../../../util/FeelUtil';
 
 const IO_ELEMENTS = new Set([
   'bpmn:ServiceTask', 'bpmn:BusinessRuleTask', 'bpmn:SendTask', 'bpmn:ScriptTask',
@@ -33,20 +34,14 @@ function makeParamEntry(id: string, labelKey: string, prop: 'source' | 'target',
     const translate    = useService('translate');
     const debounce     = useService('debounceInput');
 
-    const getValue = () => {
-      let val = (param as any)[prop] || '';
-      if (prop === 'source' && val && !val.startsWith('=')) {
-        val = '=' + val;
-      }
-      return val;
-    };
-    const setValue = (value: string) => {
+    const getValue = () =>
+      prop === 'source' ? getFeelValue((param as any)[prop]) : ((param as any)[prop] || '');
+    const setValue = (value: string) =>
       commandStack.execute('element.updateModdleProperties', {
         element,
         moddleElement: param,
         properties: { [prop]: value },
       });
-    };
 
     return prop === 'source'
       ? FeelEntry({ element, id, label: translate(labelKey), feel: 'required', getValue, setValue, debounce })

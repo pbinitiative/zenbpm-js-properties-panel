@@ -319,6 +319,70 @@ function VersionTagProps(element) {
     ];
 }
 
+/**
+ * Normalise a raw stored value for display inside a `FeelEntry` with
+ * `feel: 'required'`.
+ *
+ * `FeelEntry` expects values to carry the `=` prefix that marks them as FEEL
+ * expressions (e.g. `=myVariable`, `=[1,2,3]`).  Older data saved without
+ * the prefix is transparently upgraded on read so the editor shows it
+ * correctly, and the next save will persist the `=`.
+ *
+ * @example
+ *   // In a FeelEntry getValue:
+ *   const getValue = () => getFeelValue(param.source);
+ */
+function getFeelValue(stored) {
+    if (!stored)
+        return '';
+    return stored.startsWith('=') ? stored : '=' + stored;
+}
+/**
+ * Read the FEEL body from a `bpmn:FormalExpression` element.
+ * Returns an empty string when the expression does not exist yet.
+ */
+function getFormalExpressionValue(expression) {
+    return expression?.body ?? '';
+}
+/**
+ * Create, update, or remove a `bpmn:FormalExpression` child property.
+ *
+ * - When `value` is empty the property is cleared (`undefined`).
+ * - When the expression already exists its `body` is updated in-place.
+ * - Otherwise a new `bpmn:FormalExpression` is created and attached.
+ *
+ * @param element        The diagram element (needed by the command stack).
+ * @param moddleElement  The parent moddle object that owns the expression.
+ * @param prop           Property name on `moddleElement` (e.g. `'conditionExpression'`).
+ * @param value          New FEEL body value coming from `FeelEntry`.
+ * @param bpmnFactory    Injected bpmn factory.
+ * @param commandStack   Injected command stack.
+ */
+function setFormalExpression(element, moddleElement, prop, value, bpmnFactory, commandStack) {
+    if (!value) {
+        commandStack.execute('element.updateModdleProperties', {
+            element,
+            moddleElement,
+            properties: { [prop]: undefined },
+        });
+    }
+    else if (moddleElement[prop]) {
+        commandStack.execute('element.updateModdleProperties', {
+            element,
+            moddleElement: moddleElement[prop],
+            properties: { body: value },
+        });
+    }
+    else {
+        const expr = bpmnFactory.create('bpmn:FormalExpression', { body: value });
+        commandStack.execute('element.updateModdleProperties', {
+            element,
+            moddleElement,
+            properties: { [prop]: expr },
+        });
+    }
+}
+
 const TYPE = 'zenbpm:LoopCharacteristics';
 // ─── helpers ─────────────────────────────────────────────────────────────────
 /**
@@ -428,25 +492,8 @@ function CompletionConditionEntry(props) {
     const translate = bpmnJsPropertiesPanel.useService('translate');
     const debounce = bpmnJsPropertiesPanel.useService('debounceInput');
     const lc = getMultiInstanceLoopCharacteristics(element);
-    const getValue = () => lc.completionCondition?.body ?? '';
-    const setValue = (value) => {
-        if (!value) {
-            commandStack.execute('element.updateModdleProperties', {
-                element, moddleElement: lc, properties: { completionCondition: undefined },
-            });
-        }
-        else if (lc.completionCondition) {
-            commandStack.execute('element.updateModdleProperties', {
-                element, moddleElement: lc.completionCondition, properties: { body: value },
-            });
-        }
-        else {
-            const expr = bpmnFactory.create('bpmn:FormalExpression', { body: value });
-            commandStack.execute('element.updateModdleProperties', {
-                element, moddleElement: lc, properties: { completionCondition: expr },
-            });
-        }
-    };
+    const getValue = () => getFormalExpressionValue(lc.completionCondition);
+    const setValue = (value) => setFormalExpression(element, lc, 'completionCondition', value, bpmnFactory, commandStack);
     return propertiesPanel.FeelEntry({
         element,
         id: 'zenbpm-multiInstance-completionCondition',
@@ -490,20 +537,12 @@ function makeParamEntry(id, labelKey, prop, element, param) {
         const commandStack = bpmnJsPropertiesPanel.useService('commandStack');
         const translate = bpmnJsPropertiesPanel.useService('translate');
         const debounce = bpmnJsPropertiesPanel.useService('debounceInput');
-        const getValue = () => {
-            let val = param[prop] || '';
-            if (prop === 'source' && val && !val.startsWith('=')) {
-                val = '=' + val;
-            }
-            return val;
-        };
-        const setValue = (value) => {
-            commandStack.execute('element.updateModdleProperties', {
-                element,
-                moddleElement: param,
-                properties: { [prop]: value },
-            });
-        };
+        const getValue = () => prop === 'source' ? getFeelValue(param[prop]) : (param[prop] || '');
+        const setValue = (value) => commandStack.execute('element.updateModdleProperties', {
+            element,
+            moddleElement: param,
+            properties: { [prop]: value },
+        });
         return prop === 'source'
             ? propertiesPanel.FeelEntry({ element, id, label: translate(labelKey), feel: 'required', getValue, setValue, debounce })
             : propertiesPanel.TextFieldEntry({ element, id, label: translate(labelKey), getValue, setValue, debounce });
@@ -603,25 +642,8 @@ function ConditionExpressionEntry(props) {
     const translate = bpmnJsPropertiesPanel.useService('translate');
     const debounce = bpmnJsPropertiesPanel.useService('debounceInput');
     const bo = element.businessObject;
-    const getValue = () => bo.conditionExpression?.body ?? '';
-    const setValue = (value) => {
-        if (!value) {
-            commandStack.execute('element.updateModdleProperties', {
-                element, moddleElement: bo, properties: { conditionExpression: undefined },
-            });
-        }
-        else if (bo.conditionExpression) {
-            commandStack.execute('element.updateModdleProperties', {
-                element, moddleElement: bo.conditionExpression, properties: { body: value },
-            });
-        }
-        else {
-            const expr = bpmnFactory.create('bpmn:FormalExpression', { body: value });
-            commandStack.execute('element.updateModdleProperties', {
-                element, moddleElement: bo, properties: { conditionExpression: expr },
-            });
-        }
-    };
+    const getValue = () => getFormalExpressionValue(bo.conditionExpression);
+    const setValue = (value) => setFormalExpression(element, bo, 'conditionExpression', value, bpmnFactory, commandStack);
     return propertiesPanel.FeelEntry({
         element,
         id: 'zenbpm-conditionExpression',

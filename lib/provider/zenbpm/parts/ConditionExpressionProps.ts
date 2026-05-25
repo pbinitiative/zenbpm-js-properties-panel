@@ -1,5 +1,6 @@
 import { FeelEntry, isFeelEntryEdited } from '@bpmn-io/properties-panel';
 import { useService } from 'bpmn-js-properties-panel';
+import { getFormalExpressionValue, setFormalExpression } from '../../../util/FeelUtil';
 
 function ConditionExpressionEntry(props: any) {
   const { element } = props;
@@ -10,24 +11,10 @@ function ConditionExpressionEntry(props: any) {
 
   const bo = element.businessObject;
 
-  const getValue = () => bo.conditionExpression?.body ?? '';
+  const getValue = () => getFormalExpressionValue(bo.conditionExpression);
 
-  const setValue = (value: string) => {
-    if (!value) {
-      commandStack.execute('element.updateModdleProperties', {
-        element, moddleElement: bo, properties: { conditionExpression: undefined },
-      });
-    } else if (bo.conditionExpression) {
-      commandStack.execute('element.updateModdleProperties', {
-        element, moddleElement: bo.conditionExpression, properties: { body: value },
-      });
-    } else {
-      const expr = bpmnFactory.create('bpmn:FormalExpression', { body: value });
-      commandStack.execute('element.updateModdleProperties', {
-        element, moddleElement: bo, properties: { conditionExpression: expr },
-      });
-    }
-  };
+  const setValue = (value: string) =>
+    setFormalExpression(element, bo, 'conditionExpression', value, bpmnFactory, commandStack);
 
   return FeelEntry({
     element,
