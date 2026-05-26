@@ -102,6 +102,44 @@ function updateExtensionElementProps(element, bo, type, props, bpmnFactory, comm
     }
     commandStack.execute('properties-panel.multi-command-executor', commands);
 }
+/**
+ * Atomically swap extension elements: remove all instances of `removeType` and
+ * ensure exactly one instance of `createType` exists.  Both changes land as a
+ * single undoable step via `properties-panel.multi-command-executor`.
+ *
+ * Used when toggling mutually-exclusive extension elements (e.g. switching a
+ * BusinessRuleTask between a CalledDecision and a TaskDefinition).
+ */
+function switchExtensionElement(element, bo, removeType, createType, bpmnFactory, commandStack) {
+    const commands = [];
+    let extensionElements = bo.extensionElements;
+    // (1) create bpmn:ExtensionElements container if missing
+    if (!extensionElements) {
+        extensionElements = bpmnFactory.create('bpmn:ExtensionElements', { values: [] });
+        extensionElements.$parent = bo;
+        commands.push({
+            cmd: 'element.updateModdleProperties',
+            context: { element, moddleElement: bo, properties: { extensionElements } },
+        });
+    }
+    const currentValues = extensionElements.values || [];
+    const hasRemoveType = currentValues.some((e) => e.$instanceOf(removeType));
+    const hasCreateType = currentValues.some((e) => e.$instanceOf(createType));
+    // Already in the desired state — nothing to do
+    if (!hasRemoveType && hasCreateType)
+        return;
+    let newValues = currentValues.filter((e) => !e.$instanceOf(removeType));
+    if (!hasCreateType) {
+        const created = bpmnFactory.create(createType, {});
+        created.$parent = extensionElements;
+        newValues = [...newValues, created];
+    }
+    commands.push({
+        cmd: 'element.updateModdleProperties',
+        context: { element, moddleElement: extensionElements, properties: { values: newValues } },
+    });
+    commandStack.execute('properties-panel.multi-command-executor', commands);
+}
 
 // bpmn:ServiceTask, bpmn:BusinessRuleTask, bpmn:ScriptTask, bpmn:SendTask all
 // use zenbpm:TaskDefinition to declare the job worker type & retry count.
@@ -251,6 +289,9 @@ const BINDING_OPTIONS = [
     { value: 'versionTag', label: 'Version tag' },
 ];
 // ─── entry component factories ───────────────────────────────────────────────
+// Call these once at module level in the consumer file to get a stable function
+// reference. Never call inside getGroups / a Props function — a new reference
+// each render causes Preact to unmount and remount the entry (lost focus, etc.).
 function makeBindingTypeEntry(idPrefix, extensionType) {
     return function BindingTypeEntry(props) {
         const { element } = props;
@@ -277,32 +318,24 @@ function makeVersionTagEntry(idPrefix, extensionType) {
         return TextFieldEntry({ element, id: `${idPrefix}-versionTag`, label: translate('Version tag'), getValue, setValue, debounce });
     };
 }
-// ─── helper ──────────────────────────────────────────────────────────────────
-/**
- * Returns the binding-type select entry plus, when the current binding is
- * 'versionTag', the version-tag text-field entry.
- */
-function makeBindingEntries(idPrefix, extensionType, element) {
+// ─── conditional entry list helper ───────────────────────────────────────────
+// Pass the pre-created (module-level) component instances so references are stable.
+function bindingEntries(idPrefix, bindingTypeComponent, versionTagComponent, element, extensionType) {
     const currentBinding = getExtensionElement(element.businessObject, extensionType)?.bindingType ?? 'latest';
     const entries = [
-        {
-            id: `${idPrefix}-bindingType`,
-            component: makeBindingTypeEntry(idPrefix, extensionType),
-            isEdited: isSelectEntryEdited,
-        },
+        { id: `${idPrefix}-bindingType`, component: bindingTypeComponent, isEdited: isSelectEntryEdited },
     ];
     if (currentBinding === 'versionTag') {
-        entries.push({
-            id: `${idPrefix}-versionTag`,
-            component: makeVersionTagEntry(idPrefix, extensionType),
-            isEdited: isTextFieldEntryEdited,
-        });
+        entries.push({ id: `${idPrefix}-versionTag`, component: versionTagComponent, isEdited: isTextFieldEntryEdited });
     }
     return entries;
 }
 
 const TYPE$2 = 'zenbpm:CalledElement';
 const ID$1 = 'zenbpm-calledEl';
+// Module-level component instances — stable references, never recreated on render.
+const BindingTypeEntry$1 = makeBindingTypeEntry(ID$1, TYPE$2);
+const BindingVersionTagEntry$1 = makeVersionTagEntry(ID$1, TYPE$2);
 // ─── entry components ────────────────────────────────────────────────────────
 function ProcessIdEntry(props) {
     const { element } = props;
@@ -341,7 +374,7 @@ function CalledElementProps(element) {
         return [];
     return [
         { id: `${ID$1}-processId`, component: ProcessIdEntry, isEdited: isTextFieldEntryEdited },
-        ...makeBindingEntries(ID$1, TYPE$2, element),
+        ...bindingEntries(ID$1, BindingTypeEntry$1, BindingVersionTagEntry$1, element, TYPE$2),
         { id: `${ID$1}-propagateAllChildVariables`, component: PropagateAllChildVarsEntry, isEdited: isToggleSwitchEntryEdited },
         { id: `${ID$1}-propagateAllParentVariables`, component: PropagateAllParentVarsEntry, isEdited: isToggleSwitchEntryEdited },
     ];
@@ -349,6 +382,9 @@ function CalledElementProps(element) {
 
 const TYPE$1 = 'zenbpm:CalledDecision';
 const ID = 'zenbpm-calledDecision';
+// Module-level component instances — stable references, never recreated on render.
+const BindingTypeEntry = makeBindingTypeEntry(ID, TYPE$1);
+const BindingVersionTagEntry = makeVersionTagEntry(ID, TYPE$1);
 // ─── entry components ────────────────────────────────────────────────────────
 function DecisionIdEntry(props) {
     const { element } = props;
@@ -378,8 +414,57 @@ function CalledDecisionProps(element) {
         return [];
     return [
         { id: `${ID}-decisionId`, component: DecisionIdEntry, isEdited: isTextFieldEntryEdited },
-        ...makeBindingEntries(ID, TYPE$1, element),
+        ...bindingEntries(ID, BindingTypeEntry, BindingVersionTagEntry, element, TYPE$1),
         { id: `${ID}-resultVariable`, component: ResultVariableEntry, isEdited: isTextFieldEntryEdited },
+    ];
+}
+
+// ─── constants ───────────────────────────────────────────────────────────────
+const IMPLEMENTATION_OPTIONS = [
+    { value: 'dmnDecision', label: 'DMN decision' },
+    { value: 'jobWorker', label: 'Job worker' },
+];
+// ─── helpers ─────────────────────────────────────────────────────────────────
+/**
+ * Infer the current implementation type from extension elements:
+ * - zenbpm:TaskDefinition present  → 'jobWorker'
+ * - otherwise (zenbpm:CalledDecision or nothing) → 'dmnDecision'
+ */
+function getImplementationType(element) {
+    return getExtensionElement(element.businessObject, 'zenbpm:TaskDefinition')
+        ? 'jobWorker'
+        : 'dmnDecision';
+}
+// ─── entry component ─────────────────────────────────────────────────────────
+function ImplementationEntry(props) {
+    const { element } = props;
+    const commandStack = useService('commandStack');
+    const bpmnFactory = useService('bpmnFactory');
+    const translate = useService('translate');
+    const bo = element.businessObject;
+    const getValue = () => getImplementationType(element);
+    const setValue = (value) => {
+        if (value === 'jobWorker') {
+            switchExtensionElement(element, bo, 'zenbpm:CalledDecision', 'zenbpm:TaskDefinition', bpmnFactory, commandStack);
+        }
+        else {
+            switchExtensionElement(element, bo, 'zenbpm:TaskDefinition', 'zenbpm:CalledDecision', bpmnFactory, commandStack);
+        }
+    };
+    const getOptions = () => IMPLEMENTATION_OPTIONS.map(({ value, label }) => ({ value, label: translate(label) }));
+    return SelectEntry({
+        element,
+        id: 'zenbpm-implementation-type',
+        label: translate('Implementation'),
+        getValue,
+        setValue,
+        getOptions,
+    });
+}
+// ─── exported entry list ─────────────────────────────────────────────────────
+function ImplementationProps(_element) {
+    return [
+        { id: 'zenbpm-implementation-type', component: ImplementationEntry, isEdited: isSelectEntryEdited },
     ];
 }
 
@@ -714,8 +799,21 @@ class ZenBpmPropertiesProvider {
     getGroups(element) {
         return (groups) => {
             const translate = this._injector.get('translate');
+            // ── Implementation (Business Rule Task only) ─────────────────────────
+            if (element.type === 'bpmn:BusinessRuleTask') {
+                groups.push({
+                    id: 'zenbpm-implementation',
+                    label: translate('Implementation'),
+                    entries: ImplementationProps(),
+                    component: Group,
+                });
+            }
             // ── Task Definition ──────────────────────────────────────────────────
-            if (isServiceTaskLike(element)) {
+            // Shown for all service-task-like types except BusinessRuleTask, where it
+            // is only shown when the implementation is set to Job worker.
+            const showTaskDefinition = (isServiceTaskLike(element) && element.type !== 'bpmn:BusinessRuleTask') ||
+                (element.type === 'bpmn:BusinessRuleTask' && getImplementationType(element) === 'jobWorker');
+            if (showTaskDefinition) {
                 groups.push({
                     id: 'zenbpm-taskDefinition',
                     label: translate('Task definition'),
@@ -724,7 +822,7 @@ class ZenBpmPropertiesProvider {
                 });
             }
             // ── Called Decision ──────────────────────────────────────────────────
-            if (element.type === 'bpmn:BusinessRuleTask') {
+            if (element.type === 'bpmn:BusinessRuleTask' && getImplementationType(element) === 'dmnDecision') {
                 groups.push({
                     id: 'zenbpm-calledDecision',
                     label: translate('Called decision'),

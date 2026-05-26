@@ -4,10 +4,14 @@ import {
 } from '@bpmn-io/properties-panel';
 import { useService } from 'bpmn-js-properties-panel';
 import { getExtensionElement, updateExtensionElementProps } from '../../../util/ExtensionElementsUtil';
-import { makeBindingEntries } from './BindingProps';
+import { makeBindingTypeEntry, makeVersionTagEntry, bindingEntries } from './BindingProps';
 
 const TYPE = 'zenbpm:CalledDecision';
 const ID   = 'zenbpm-calledDecision';
+
+// Module-level component instances — stable references, never recreated on render.
+const BindingTypeEntry = makeBindingTypeEntry(ID, TYPE);
+const BindingVersionTagEntry = makeVersionTagEntry(ID, TYPE);
 
 // ─── entry components ────────────────────────────────────────────────────────
 
@@ -50,7 +54,7 @@ export function CalledDecisionProps(element: any) {
 
   return [
     { id: `${ID}-decisionId`,     component: DecisionIdEntry,     isEdited: isTextFieldEntryEdited },
-    ...makeBindingEntries(ID, TYPE, element),
+    ...bindingEntries(ID, BindingTypeEntry, BindingVersionTagEntry, element, TYPE),
     { id: `${ID}-resultVariable`, component: ResultVariableEntry, isEdited: isTextFieldEntryEdited },
   ];
 }

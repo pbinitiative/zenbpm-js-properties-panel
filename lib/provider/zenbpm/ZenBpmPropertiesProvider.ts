@@ -4,6 +4,7 @@ import { TaskDefinitionProps, isServiceTaskLike } from './parts/TaskDefinitionPr
 import { AssignmentDefinitionProps } from './parts/AssignmentDefinitionProps';
 import { CalledElementProps } from './parts/CalledElementProps';
 import { CalledDecisionProps } from './parts/CalledDecisionProps';
+import { ImplementationProps, getImplementationType } from './parts/ImplementationProps';
 import { VersionTagProps } from './parts/VersionTagProps';
 import { MultiInstanceProps } from './parts/MultiInstanceProps';
 import { createInputMappingGroup, createOutputMappingGroup } from './parts/IoMappingProps';
@@ -25,8 +26,24 @@ export class ZenBpmPropertiesProvider {
     return (groups: any[]) => {
       const translate = this._injector.get('translate');
 
+      // ── Implementation (Business Rule Task only) ─────────────────────────
+      if (element.type === 'bpmn:BusinessRuleTask') {
+        groups.push({
+          id: 'zenbpm-implementation',
+          label: translate('Implementation'),
+          entries: ImplementationProps(element),
+          component: Group,
+        });
+      }
+
       // ── Task Definition ──────────────────────────────────────────────────
-      if (isServiceTaskLike(element)) {
+      // Shown for all service-task-like types except BusinessRuleTask, where it
+      // is only shown when the implementation is set to Job worker.
+      const showTaskDefinition =
+        (isServiceTaskLike(element) && element.type !== 'bpmn:BusinessRuleTask') ||
+        (element.type === 'bpmn:BusinessRuleTask' && getImplementationType(element) === 'jobWorker');
+
+      if (showTaskDefinition) {
         groups.push({
           id: 'zenbpm-taskDefinition',
           label: translate('Task definition'),
@@ -36,7 +53,7 @@ export class ZenBpmPropertiesProvider {
       }
 
       // ── Called Decision ──────────────────────────────────────────────────
-      if (element.type === 'bpmn:BusinessRuleTask') {
+      if (element.type === 'bpmn:BusinessRuleTask' && getImplementationType(element) === 'dmnDecision') {
         groups.push({
           id: 'zenbpm-calledDecision',
           label: translate('Called decision'),

@@ -10,18 +10,20 @@ It reads and writes ZenBPM extension elements (defined by [`@pbinitiative/zenbpm
 
 | Element | Property group | Fields |
 |---|---|---|
-| Service / Rule / Script / Send Task | **Task definition** | Type, Retries |
-| Business Rule Task | **Called decision** | Decision ID, Binding (latest/deployment/version tag), Version tag*, Result variable |
+| Business Rule Task | **Implementation** | Implementation type (DMN decision / Job worker) |
+| Business Rule Task — DMN decision | **Called decision** | Decision ID, Binding (latest/deployment/version tag), Version tag*, Result variable |
+| Business Rule Task — Job worker | **Task definition** | Type, Retries |
+| Service / Script / Send Task | **Task definition** | Type, Retries |
 | Call Activity | **Called element** | Process ID, Binding (latest/deployment/version tag), Version tag*, Propagate all child variables, Propagate all parent variables |
 | User Task | **Assignment** | Assignee (FEEL), Candidate groups (FEEL), Candidate users (FEEL), Due date (FEEL), Follow-up date (FEEL) |
 | User Task | **Zen Form** | *Design Form* button (opens form designer) |
 | All applicable tasks + Sub-process + Events | **Input mapping** | Source expression (FEEL), Target variable |
-
-> \* Version tag field is only shown when Binding is set to *Version tag*.
 | All applicable tasks + Sub-process + Events | **Output mapping** | Source expression (FEEL), Target variable |
 | Multi-instance elements | **Multi-instance** | Input collection, Element variable, Output collection, Output element, Completion condition |
 | Sequence flows / boundary events | **Condition** | Condition expression (FEEL) |
 | Process | **Version tag** | Tag value |
+
+> \* The **Version tag** text field only appears when you select *Version tag* from the **Binding** dropdown. The Binding dropdown has three options: *Latest* (always use the newest deployed version), *Deployment* (use the version deployed together with this process), and *Version tag* (use a specific version identified by a tag string).
 
 ---
 

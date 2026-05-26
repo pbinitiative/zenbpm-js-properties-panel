@@ -6,10 +6,14 @@ import {
 } from '@bpmn-io/properties-panel';
 import { useService } from 'bpmn-js-properties-panel';
 import { getExtensionElement, updateExtensionElementProps } from '../../../util/ExtensionElementsUtil';
-import { makeBindingEntries } from './BindingProps';
+import { makeBindingTypeEntry, makeVersionTagEntry, bindingEntries } from './BindingProps';
 
 const TYPE = 'zenbpm:CalledElement';
 const ID   = 'zenbpm-calledEl';
+
+// Module-level component instances — stable references, never recreated on render.
+const BindingTypeEntry = makeBindingTypeEntry(ID, TYPE);
+const BindingVersionTagEntry = makeVersionTagEntry(ID, TYPE);
 
 // ─── entry components ────────────────────────────────────────────────────────
 
@@ -66,7 +70,7 @@ export function CalledElementProps(element: any) {
 
   return [
     { id: `${ID}-processId`,                   component: ProcessIdEntry,              isEdited: isTextFieldEntryEdited    },
-    ...makeBindingEntries(ID, TYPE, element),
+    ...bindingEntries(ID, BindingTypeEntry, BindingVersionTagEntry, element, TYPE),
     { id: `${ID}-propagateAllChildVariables`,  component: PropagateAllChildVarsEntry,  isEdited: isToggleSwitchEntryEdited },
     { id: `${ID}-propagateAllParentVariables`, component: PropagateAllParentVarsEntry, isEdited: isToggleSwitchEntryEdited },
   ];

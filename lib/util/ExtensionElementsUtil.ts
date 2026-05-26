@@ -60,3 +60,56 @@ export function updateExtensionElementProps(
 
   commandStack.execute('properties-panel.multi-command-executor', commands);
 }
+
+/**
+ * Atomically swap extension elements: remove all instances of `removeType` and
+ * ensure exactly one instance of `createType` exists.  Both changes land as a
+ * single undoable step via `properties-panel.multi-command-executor`.
+ *
+ * Used when toggling mutually-exclusive extension elements (e.g. switching a
+ * BusinessRuleTask between a CalledDecision and a TaskDefinition).
+ */
+export function switchExtensionElement(
+  element: any,
+  bo: any,
+  removeType: string,
+  createType: string,
+  bpmnFactory: any,
+  commandStack: any,
+): void {
+  const commands: any[] = [];
+
+  let extensionElements = bo.extensionElements;
+
+  // (1) create bpmn:ExtensionElements container if missing
+  if (!extensionElements) {
+    extensionElements = bpmnFactory.create('bpmn:ExtensionElements', { values: [] });
+    extensionElements.$parent = bo;
+    commands.push({
+      cmd: 'element.updateModdleProperties',
+      context: { element, moddleElement: bo, properties: { extensionElements } },
+    });
+  }
+
+  const currentValues: any[] = extensionElements.values || [];
+  const hasRemoveType = currentValues.some((e: any) => e.$instanceOf(removeType));
+  const hasCreateType = currentValues.some((e: any) => e.$instanceOf(createType));
+
+  // Already in the desired state — nothing to do
+  if (!hasRemoveType && hasCreateType) return;
+
+  let newValues = currentValues.filter((e: any) => !e.$instanceOf(removeType));
+
+  if (!hasCreateType) {
+    const created = bpmnFactory.create(createType, {});
+    created.$parent = extensionElements;
+    newValues = [...newValues, created];
+  }
+
+  commands.push({
+    cmd: 'element.updateModdleProperties',
+    context: { element, moddleElement: extensionElements, properties: { values: newValues } },
+  });
+
+  commandStack.execute('properties-panel.multi-command-executor', commands);
+}
