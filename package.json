@@ -1,16 +1,16 @@
 {
-  "name": "zenbpm-js-properties-panel",
-  "version": "1.0.0",
+  "name": "@pbinitiative/zenbpm-js-properties-panel",
+  "version": "0.1.0",
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.mjs",
   "types": "dist/types/index.d.ts",
+  "files": ["dist"],
   "scripts": {
     "build": "rollup -c"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "description": "",
   "devDependencies": {
     "@rollup/plugin-commonjs": "^29.0.2",
@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "min-dash": "^5.0.0",
-    "zenbpm-bpmn-moddle": "file:../zenbpm-bpmn-moddle"
+    "@pbinitiative/zenbpm-bpmn-moddle": "^0.1.0"
   },
   "peerDependencies": {
     "@bpmn-io/properties-panel": ">= 3.7",

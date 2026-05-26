@@ -11,6 +11,9 @@ importers:
       '@bpmn-io/properties-panel':
         specifier: '>= 3.7'
         version: 3.34.0
+      '@pbinitiative/zenbpm-bpmn-moddle':
+        specifier: ^0.1.0
+        version: 0.1.0(bpmn-moddle@9.0.4)
       bpmn-js:
         specifier: '>= 11.5'
         version: 18.9.1
@@ -20,9 +23,6 @@ importers:
       min-dash:
         specifier: ^5.0.0
         version: 5.0.0
-      zenbpm-bpmn-moddle:
-        specifier: file:../zenbpm-bpmn-moddle
-        version: file:../zenbpm-bpmn-moddle
     devDependencies:
       '@rollup/plugin-commonjs':
         specifier: ^29.0.2
@@ -129,6 +129,12 @@ packages:
 
   '@marijn/find-cluster-break@1.0.2':
     resolution: {integrity: sha512-l0h88YhZFyKdXIFNfSWpyjStDjGHwZ/U7iobcK1cQQD8sejsONdQtTVU+1wVN1PBw40PiiHB1vA5S7VTfQiP9g==}
+
+  '@pbinitiative/zenbpm-bpmn-moddle@0.1.0':
+    resolution: {integrity: sha512-+B3F57tbYbUGKKvIjlsD1JOq9/gu5fOg6niSIcr3Ce6UnlsAdrl/VL91wfnvYerisEWV1NEDyiwBDxN6kboEVg==}
+    engines: {node: '>=14'}
+    peerDependencies:
+      bpmn-moddle: '>=7'
 
   '@rollup/plugin-commonjs@29.0.2':
     resolution: {integrity: sha512-S/ggWH1LU7jTyi9DxZOKyxpVd4hF/OZ0JrEbeLjXk/DFXwRny0tjD2c992zOUYQobLrVkRVMDdmHP16HKP7GRg==}
@@ -522,9 +528,6 @@ packages:
   zeebe-bpmn-moddle@1.14.0:
     resolution: {integrity: sha512-jhEr/UOaWcT4peXxkUqXd7tscjYf2evbm/ElofmZ8TFPqs8MhxTVolFQBtKza6n9cwIVDyc6L7ChQHSzicG7QA==}
 
-  zenbpm-bpmn-moddle@file:../zenbpm-bpmn-moddle:
-    resolution: {directory: ../zenbpm-bpmn-moddle, type: directory}
-
 snapshots:
 
   '@bpmn-io/cm-theme@0.1.0-alpha.2':
@@ -669,6 +672,10 @@ snapshots:
       '@lezer/highlight': 1.2.3
 
   '@marijn/find-cluster-break@1.0.2': {}
+
+  '@pbinitiative/zenbpm-bpmn-moddle@0.1.0(bpmn-moddle@9.0.4)':
+    dependencies:
+      bpmn-moddle: 9.0.4
 
   '@rollup/plugin-commonjs@29.0.2(rollup@4.60.4)':
     dependencies:
@@ -1026,5 +1033,3 @@ snapshots:
   w3c-keyname@2.2.8: {}
 
   zeebe-bpmn-moddle@1.14.0: {}
-
-  zenbpm-bpmn-moddle@file:../zenbpm-bpmn-moddle: {}
