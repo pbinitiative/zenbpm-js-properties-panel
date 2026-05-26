@@ -1,4 +1,4 @@
-import { isTextFieldEntryEdited, TextFieldEntry, isToggleSwitchEntryEdited, ToggleSwitchEntry, isFeelEntryEdited, FeelEntry, ListGroup, Group } from '@bpmn-io/properties-panel';
+import { isTextFieldEntryEdited, TextFieldEntry, isFeelEntryEdited, FeelEntry, isSelectEntryEdited, SelectEntry, isToggleSwitchEntryEdited, ToggleSwitchEntry, ListGroup, Group } from '@bpmn-io/properties-panel';
 import { createElement } from '@bpmn-io/properties-panel/preact';
 import { useService } from 'bpmn-js-properties-panel';
 
@@ -147,175 +147,6 @@ function TaskDefinitionProps(element) {
     ];
 }
 
-function makeTextEntry$2(id, labelKey, prop) {
-    return function Entry(props) {
-        const { element } = props;
-        const commandStack = useService('commandStack');
-        const bpmnFactory = useService('bpmnFactory');
-        const translate = useService('translate');
-        const debounce = useService('debounceInput');
-        const bo = element.businessObject;
-        const getValue = () => getExtensionElement(bo, 'zenbpm:AssignmentDefinition')?.[prop] ?? '';
-        const setValue = (value) => updateExtensionElementProps(element, bo, 'zenbpm:AssignmentDefinition', { [prop]: value }, bpmnFactory, commandStack);
-        return TextFieldEntry({ element, id, label: translate(labelKey), getValue, setValue, debounce });
-    };
-}
-const AssigneeEntry = makeTextEntry$2('zenbpm-assign-assignee', 'Assignee', 'assignee');
-const CandidateGroupsEntry = makeTextEntry$2('zenbpm-assign-candidateGroups', 'Candidate groups', 'candidateGroups');
-function AssignmentDefinitionProps(element) {
-    if (element.type !== 'bpmn:UserTask')
-        return [];
-    return [
-        { id: 'zenbpm-assign-assignee', component: AssigneeEntry, isEdited: isTextFieldEntryEdited },
-        { id: 'zenbpm-assign-candidateGroups', component: CandidateGroupsEntry, isEdited: isTextFieldEntryEdited },
-    ];
-}
-
-// ─── helpers ─────────────────────────────────────────────────────────────────
-function makeTextEntry$1(id, labelKey, prop) {
-    return function Entry(props) {
-        const { element } = props;
-        const commandStack = useService('commandStack');
-        const bpmnFactory = useService('bpmnFactory');
-        const translate = useService('translate');
-        const debounce = useService('debounceInput');
-        const bo = element.businessObject;
-        const getValue = () => getExtensionElement(bo, 'zenbpm:TaskSchedule')?.[prop] ?? '';
-        const setValue = (value) => updateExtensionElementProps(element, bo, 'zenbpm:TaskSchedule', { [prop]: value }, bpmnFactory, commandStack);
-        return TextFieldEntry({ element, id, label: translate(labelKey), getValue, setValue, debounce });
-    };
-}
-const DueDateEntry = makeTextEntry$1('zenbpm-schedule-dueDate', 'Due date', 'dueDate');
-const FollowUpDateEntry = makeTextEntry$1('zenbpm-schedule-followUpDate', 'Follow-up date', 'followUpDate');
-// ─── exported entry list ─────────────────────────────────────────────────────
-function TaskScheduleProps(element) {
-    if (element.type !== 'bpmn:UserTask')
-        return [];
-    return [
-        { id: 'zenbpm-schedule-dueDate', component: DueDateEntry, isEdited: isTextFieldEntryEdited },
-        { id: 'zenbpm-schedule-followUpDate', component: FollowUpDateEntry, isEdited: isTextFieldEntryEdited },
-    ];
-}
-
-const TYPE$2 = 'zenbpm:CalledElement';
-// ─── entry components ────────────────────────────────────────────────────────
-function ProcessIdEntry(props) {
-    const { element } = props;
-    const commandStack = useService('commandStack');
-    const bpmnFactory = useService('bpmnFactory');
-    const translate = useService('translate');
-    const debounce = useService('debounceInput');
-    const bo = element.businessObject;
-    const getValue = () => getExtensionElement(bo, TYPE$2)?.processId ?? '';
-    const setValue = (value) => updateExtensionElementProps(element, bo, TYPE$2, { processId: value }, bpmnFactory, commandStack);
-    return TextFieldEntry({
-        element,
-        id: 'zenbpm-calledEl-processId',
-        label: translate('Process ID'),
-        getValue,
-        setValue,
-        debounce,
-    });
-}
-function PropagateAllChildVarsEntry(props) {
-    const { element } = props;
-    const commandStack = useService('commandStack');
-    const bpmnFactory = useService('bpmnFactory');
-    const translate = useService('translate');
-    const bo = element.businessObject;
-    const getValue = () => getExtensionElement(bo, TYPE$2)?.propagateAllChildVariables ?? false;
-    const setValue = (value) => updateExtensionElementProps(element, bo, TYPE$2, { propagateAllChildVariables: value }, bpmnFactory, commandStack);
-    return ToggleSwitchEntry({
-        element,
-        id: 'zenbpm-calledEl-propagateAllChildVariables',
-        label: translate('Propagate all child variables'),
-        getValue,
-        setValue,
-    });
-}
-function PropagateAllParentVarsEntry(props) {
-    const { element } = props;
-    const commandStack = useService('commandStack');
-    const bpmnFactory = useService('bpmnFactory');
-    const translate = useService('translate');
-    const bo = element.businessObject;
-    const getValue = () => getExtensionElement(bo, TYPE$2)?.propagateAllParentVariables ?? true;
-    const setValue = (value) => updateExtensionElementProps(element, bo, TYPE$2, { propagateAllParentVariables: value }, bpmnFactory, commandStack);
-    return ToggleSwitchEntry({
-        element,
-        id: 'zenbpm-calledEl-propagateAllParentVariables',
-        label: translate('Propagate all parent variables'),
-        getValue,
-        setValue,
-    });
-}
-// ─── exported entry list ─────────────────────────────────────────────────────
-function CalledElementProps(element) {
-    if (element.type !== 'bpmn:CallActivity')
-        return [];
-    return [
-        { id: 'zenbpm-calledEl-processId', component: ProcessIdEntry, isEdited: isTextFieldEntryEdited },
-        { id: 'zenbpm-calledEl-propagateAllChildVariables', component: PropagateAllChildVarsEntry, isEdited: isToggleSwitchEntryEdited },
-        { id: 'zenbpm-calledEl-propagateAllParentVariables', component: PropagateAllParentVarsEntry, isEdited: isToggleSwitchEntryEdited },
-    ];
-}
-
-const TYPE$1 = 'zenbpm:CalledDecision';
-function makeTextEntry(id, labelKey, prop) {
-    return function Entry(props) {
-        const { element } = props;
-        const commandStack = useService('commandStack');
-        const bpmnFactory = useService('bpmnFactory');
-        const translate = useService('translate');
-        const debounce = useService('debounceInput');
-        const bo = element.businessObject;
-        const getValue = () => getExtensionElement(bo, TYPE$1)?.[prop] ?? '';
-        const setValue = (value) => updateExtensionElementProps(element, bo, TYPE$1, { [prop]: value }, bpmnFactory, commandStack);
-        return TextFieldEntry({ element, id, label: translate(labelKey), getValue, setValue, debounce });
-    };
-}
-const DecisionIdEntry = makeTextEntry('zenbpm-calledDecision-decisionId', 'Decision ID', 'decisionId');
-const ResultVariableEntry = makeTextEntry('zenbpm-calledDecision-resultVariable', 'Result variable', 'resultVariable');
-function CalledDecisionProps(element) {
-    if (element.type !== 'bpmn:BusinessRuleTask')
-        return [];
-    return [
-        { id: 'zenbpm-calledDecision-decisionId', component: DecisionIdEntry, isEdited: isTextFieldEntryEdited },
-        { id: 'zenbpm-calledDecision-resultVariable', component: ResultVariableEntry, isEdited: isTextFieldEntryEdited },
-    ];
-}
-
-// ─── entry component ─────────────────────────────────────────────────────────
-function VersionTagEntry(props) {
-    const { element } = props;
-    const commandStack = useService('commandStack');
-    const bpmnFactory = useService('bpmnFactory');
-    const translate = useService('translate');
-    const debounce = useService('debounceInput');
-    // Version tag sits on the process business object.
-    // For the canvas root the bo IS the process; for a sub-process it is too.
-    const bo = element.businessObject;
-    const getValue = () => getExtensionElement(bo, 'zenbpm:VersionTag')?.value ?? '';
-    const setValue = (value) => updateExtensionElementProps(element, bo, 'zenbpm:VersionTag', { value }, bpmnFactory, commandStack);
-    return TextFieldEntry({
-        element,
-        id: 'zenbpm-versionTag-value',
-        label: translate('Version tag'),
-        getValue,
-        setValue,
-        debounce,
-    });
-}
-// ─── exported entry list ─────────────────────────────────────────────────────
-function VersionTagProps(element) {
-    // Show on the process root (bpmn:Process) and on sub-processes
-    if (element.type !== 'bpmn:Process')
-        return [];
-    return [
-        { id: 'zenbpm-versionTag-value', component: VersionTagEntry, isEdited: isTextFieldEntryEdited },
-    ];
-}
-
 /**
  * Normalise a raw stored value for display inside a `FeelEntry` with
  * `feel: 'required'`.
@@ -378,6 +209,209 @@ function setFormalExpression(element, moddleElement, prop, value, bpmnFactory, c
             properties: { [prop]: expr },
         });
     }
+}
+
+// ─── helpers ─────────────────────────────────────────────────────────────────
+function makeFeelEntry(id, labelKey, extensionType, prop) {
+    return function Entry(props) {
+        const { element } = props;
+        const commandStack = useService('commandStack');
+        const bpmnFactory = useService('bpmnFactory');
+        const translate = useService('translate');
+        const debounce = useService('debounceInput');
+        const bo = element.businessObject;
+        const getValue = () => getFeelValue(getExtensionElement(bo, extensionType)?.[prop]);
+        const setValue = (value) => updateExtensionElementProps(element, bo, extensionType, { [prop]: value }, bpmnFactory, commandStack);
+        return FeelEntry({ element, id, label: translate(labelKey), feel: 'required', getValue, setValue, debounce });
+    };
+}
+// ─── entry components ────────────────────────────────────────────────────────
+const AssigneeEntry = makeFeelEntry('zenbpm-assign-assignee', 'Assignee', 'zenbpm:AssignmentDefinition', 'assignee');
+const CandidateGroupsEntry = makeFeelEntry('zenbpm-assign-candidateGroups', 'Candidate groups', 'zenbpm:AssignmentDefinition', 'candidateGroups');
+const CandidateUsersEntry = makeFeelEntry('zenbpm-assign-candidateUsers', 'Candidate users', 'zenbpm:AssignmentDefinition', 'candidateUsers');
+const DueDateEntry = makeFeelEntry('zenbpm-assign-dueDate', 'Due date', 'zenbpm:TaskSchedule', 'dueDate');
+const FollowUpDateEntry = makeFeelEntry('zenbpm-assign-followUpDate', 'Follow-up date', 'zenbpm:TaskSchedule', 'followUpDate');
+// ─── exported entry list ─────────────────────────────────────────────────────
+function AssignmentDefinitionProps(element) {
+    if (element.type !== 'bpmn:UserTask')
+        return [];
+    return [
+        { id: 'zenbpm-assign-assignee', component: AssigneeEntry, isEdited: isFeelEntryEdited },
+        { id: 'zenbpm-assign-candidateGroups', component: CandidateGroupsEntry, isEdited: isFeelEntryEdited },
+        { id: 'zenbpm-assign-candidateUsers', component: CandidateUsersEntry, isEdited: isFeelEntryEdited },
+        { id: 'zenbpm-assign-dueDate', component: DueDateEntry, isEdited: isFeelEntryEdited },
+        { id: 'zenbpm-assign-followUpDate', component: FollowUpDateEntry, isEdited: isFeelEntryEdited },
+    ];
+}
+
+// ─── constants ───────────────────────────────────────────────────────────────
+const BINDING_OPTIONS = [
+    { value: 'latest', label: 'Latest' },
+    { value: 'deployment', label: 'Deployment' },
+    { value: 'versionTag', label: 'Version tag' },
+];
+// ─── entry component factories ───────────────────────────────────────────────
+function makeBindingTypeEntry(idPrefix, extensionType) {
+    return function BindingTypeEntry(props) {
+        const { element } = props;
+        const commandStack = useService('commandStack');
+        const bpmnFactory = useService('bpmnFactory');
+        const translate = useService('translate');
+        const bo = element.businessObject;
+        const getValue = () => getExtensionElement(bo, extensionType)?.bindingType ?? 'latest';
+        const setValue = (value) => updateExtensionElementProps(element, bo, extensionType, { bindingType: value }, bpmnFactory, commandStack);
+        const getOptions = () => BINDING_OPTIONS.map(({ value, label }) => ({ value, label: translate(label) }));
+        return SelectEntry({ element, id: `${idPrefix}-bindingType`, label: translate('Binding'), getValue, setValue, getOptions });
+    };
+}
+function makeVersionTagEntry(idPrefix, extensionType) {
+    return function VersionTagEntry(props) {
+        const { element } = props;
+        const commandStack = useService('commandStack');
+        const bpmnFactory = useService('bpmnFactory');
+        const translate = useService('translate');
+        const debounce = useService('debounceInput');
+        const bo = element.businessObject;
+        const getValue = () => getExtensionElement(bo, extensionType)?.versionTag ?? '';
+        const setValue = (value) => updateExtensionElementProps(element, bo, extensionType, { versionTag: value }, bpmnFactory, commandStack);
+        return TextFieldEntry({ element, id: `${idPrefix}-versionTag`, label: translate('Version tag'), getValue, setValue, debounce });
+    };
+}
+// ─── helper ──────────────────────────────────────────────────────────────────
+/**
+ * Returns the binding-type select entry plus, when the current binding is
+ * 'versionTag', the version-tag text-field entry.
+ */
+function makeBindingEntries(idPrefix, extensionType, element) {
+    const currentBinding = getExtensionElement(element.businessObject, extensionType)?.bindingType ?? 'latest';
+    const entries = [
+        {
+            id: `${idPrefix}-bindingType`,
+            component: makeBindingTypeEntry(idPrefix, extensionType),
+            isEdited: isSelectEntryEdited,
+        },
+    ];
+    if (currentBinding === 'versionTag') {
+        entries.push({
+            id: `${idPrefix}-versionTag`,
+            component: makeVersionTagEntry(idPrefix, extensionType),
+            isEdited: isTextFieldEntryEdited,
+        });
+    }
+    return entries;
+}
+
+const TYPE$2 = 'zenbpm:CalledElement';
+const ID$1 = 'zenbpm-calledEl';
+// ─── entry components ────────────────────────────────────────────────────────
+function ProcessIdEntry(props) {
+    const { element } = props;
+    const commandStack = useService('commandStack');
+    const bpmnFactory = useService('bpmnFactory');
+    const translate = useService('translate');
+    const debounce = useService('debounceInput');
+    const bo = element.businessObject;
+    const getValue = () => getExtensionElement(bo, TYPE$2)?.processId ?? '';
+    const setValue = (value) => updateExtensionElementProps(element, bo, TYPE$2, { processId: value }, bpmnFactory, commandStack);
+    return TextFieldEntry({ element, id: `${ID$1}-processId`, label: translate('Process ID'), getValue, setValue, debounce });
+}
+function PropagateAllChildVarsEntry(props) {
+    const { element } = props;
+    const commandStack = useService('commandStack');
+    const bpmnFactory = useService('bpmnFactory');
+    const translate = useService('translate');
+    const bo = element.businessObject;
+    const getValue = () => getExtensionElement(bo, TYPE$2)?.propagateAllChildVariables ?? false;
+    const setValue = (value) => updateExtensionElementProps(element, bo, TYPE$2, { propagateAllChildVariables: value }, bpmnFactory, commandStack);
+    return ToggleSwitchEntry({ element, id: `${ID$1}-propagateAllChildVariables`, label: translate('Propagate all child variables'), getValue, setValue });
+}
+function PropagateAllParentVarsEntry(props) {
+    const { element } = props;
+    const commandStack = useService('commandStack');
+    const bpmnFactory = useService('bpmnFactory');
+    const translate = useService('translate');
+    const bo = element.businessObject;
+    const getValue = () => getExtensionElement(bo, TYPE$2)?.propagateAllParentVariables ?? true;
+    const setValue = (value) => updateExtensionElementProps(element, bo, TYPE$2, { propagateAllParentVariables: value }, bpmnFactory, commandStack);
+    return ToggleSwitchEntry({ element, id: `${ID$1}-propagateAllParentVariables`, label: translate('Propagate all parent variables'), getValue, setValue });
+}
+// ─── exported entry list ─────────────────────────────────────────────────────
+function CalledElementProps(element) {
+    if (element.type !== 'bpmn:CallActivity')
+        return [];
+    return [
+        { id: `${ID$1}-processId`, component: ProcessIdEntry, isEdited: isTextFieldEntryEdited },
+        ...makeBindingEntries(ID$1, TYPE$2, element),
+        { id: `${ID$1}-propagateAllChildVariables`, component: PropagateAllChildVarsEntry, isEdited: isToggleSwitchEntryEdited },
+        { id: `${ID$1}-propagateAllParentVariables`, component: PropagateAllParentVarsEntry, isEdited: isToggleSwitchEntryEdited },
+    ];
+}
+
+const TYPE$1 = 'zenbpm:CalledDecision';
+const ID = 'zenbpm-calledDecision';
+// ─── entry components ────────────────────────────────────────────────────────
+function DecisionIdEntry(props) {
+    const { element } = props;
+    const commandStack = useService('commandStack');
+    const bpmnFactory = useService('bpmnFactory');
+    const translate = useService('translate');
+    const debounce = useService('debounceInput');
+    const bo = element.businessObject;
+    const getValue = () => getExtensionElement(bo, TYPE$1)?.decisionId ?? '';
+    const setValue = (value) => updateExtensionElementProps(element, bo, TYPE$1, { decisionId: value }, bpmnFactory, commandStack);
+    return TextFieldEntry({ element, id: `${ID}-decisionId`, label: translate('Decision ID'), getValue, setValue, debounce });
+}
+function ResultVariableEntry(props) {
+    const { element } = props;
+    const commandStack = useService('commandStack');
+    const bpmnFactory = useService('bpmnFactory');
+    const translate = useService('translate');
+    const debounce = useService('debounceInput');
+    const bo = element.businessObject;
+    const getValue = () => getExtensionElement(bo, TYPE$1)?.resultVariable ?? '';
+    const setValue = (value) => updateExtensionElementProps(element, bo, TYPE$1, { resultVariable: value }, bpmnFactory, commandStack);
+    return TextFieldEntry({ element, id: `${ID}-resultVariable`, label: translate('Result variable'), getValue, setValue, debounce });
+}
+// ─── exported entry list ─────────────────────────────────────────────────────
+function CalledDecisionProps(element) {
+    if (element.type !== 'bpmn:BusinessRuleTask')
+        return [];
+    return [
+        { id: `${ID}-decisionId`, component: DecisionIdEntry, isEdited: isTextFieldEntryEdited },
+        ...makeBindingEntries(ID, TYPE$1, element),
+        { id: `${ID}-resultVariable`, component: ResultVariableEntry, isEdited: isTextFieldEntryEdited },
+    ];
+}
+
+// ─── entry component ─────────────────────────────────────────────────────────
+function VersionTagEntry(props) {
+    const { element } = props;
+    const commandStack = useService('commandStack');
+    const bpmnFactory = useService('bpmnFactory');
+    const translate = useService('translate');
+    const debounce = useService('debounceInput');
+    // Version tag sits on the process business object.
+    // For the canvas root the bo IS the process; for a sub-process it is too.
+    const bo = element.businessObject;
+    const getValue = () => getExtensionElement(bo, 'zenbpm:VersionTag')?.value ?? '';
+    const setValue = (value) => updateExtensionElementProps(element, bo, 'zenbpm:VersionTag', { value }, bpmnFactory, commandStack);
+    return TextFieldEntry({
+        element,
+        id: 'zenbpm-versionTag-value',
+        label: translate('Version tag'),
+        getValue,
+        setValue,
+        debounce,
+    });
+}
+// ─── exported entry list ─────────────────────────────────────────────────────
+function VersionTagProps(element) {
+    // Show on the process root (bpmn:Process) and on sub-processes
+    if (element.type !== 'bpmn:Process')
+        return [];
+    return [
+        { id: 'zenbpm-versionTag-value', component: VersionTagEntry, isEdited: isTextFieldEntryEdited },
+    ];
 }
 
 const TYPE = 'zenbpm:LoopCharacteristics';
@@ -713,15 +747,6 @@ class ZenBpmPropertiesProvider {
                     id: 'zenbpm-assignmentDefinition',
                     label: translate('Assignment'),
                     entries: AssignmentDefinitionProps(element),
-                    component: Group,
-                });
-            }
-            // ── Task Schedule ────────────────────────────────────────────────────
-            if (element.type === 'bpmn:UserTask') {
-                groups.push({
-                    id: 'zenbpm-taskSchedule',
-                    label: translate('Task schedule'),
-                    entries: TaskScheduleProps(element),
                     component: Group,
                 });
             }

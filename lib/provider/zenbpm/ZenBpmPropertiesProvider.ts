@@ -2,7 +2,6 @@ import { Group, ListGroup } from '@bpmn-io/properties-panel';
 import { ZenFormProps } from './parts/ZenFormProps';
 import { TaskDefinitionProps, isServiceTaskLike } from './parts/TaskDefinitionProps';
 import { AssignmentDefinitionProps } from './parts/AssignmentDefinitionProps';
-import { TaskScheduleProps } from './parts/TaskScheduleProps';
 import { CalledElementProps } from './parts/CalledElementProps';
 import { CalledDecisionProps } from './parts/CalledDecisionProps';
 import { VersionTagProps } from './parts/VersionTagProps';
@@ -62,16 +61,6 @@ export class ZenBpmPropertiesProvider {
           id: 'zenbpm-assignmentDefinition',
           label: translate('Assignment'),
           entries: AssignmentDefinitionProps(element),
-          component: Group,
-        });
-      }
-
-      // ── Task Schedule ────────────────────────────────────────────────────
-      if (element.type === 'bpmn:UserTask') {
-        groups.push({
-          id: 'zenbpm-taskSchedule',
-          label: translate('Task schedule'),
-          entries: TaskScheduleProps(element),
           component: Group,
         });
       }

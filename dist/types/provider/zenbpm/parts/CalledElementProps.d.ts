@@ -1,7 +1,1 @@
-declare function ProcessIdEntry(props: any): any;
-export declare function CalledElementProps(element: any): {
-    id: string;
-    component: typeof ProcessIdEntry;
-    isEdited: import("@bpmn-io/properties-panel").IsEditedFn;
-}[];
-export {};
+export declare function CalledElementProps(element: any): any[];
