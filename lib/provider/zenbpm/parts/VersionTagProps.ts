@@ -35,7 +35,7 @@ function VersionTagEntry(props: any) {
 // ─── exported entry list ─────────────────────────────────────────────────────
 
 export function VersionTagProps(element: any) {
-  // Show on the process root (bpmn:Process) and on sub-processes
+  // Show only on the process root (bpmn:Process); sub-processes use their own version lifecycle
   if (element.type !== 'bpmn:Process') return [];
 
   return [

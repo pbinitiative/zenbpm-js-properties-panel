@@ -493,7 +493,7 @@ function VersionTagEntry(props) {
 }
 // ─── exported entry list ─────────────────────────────────────────────────────
 function VersionTagProps(element) {
-    // Show on the process root (bpmn:Process) and on sub-processes
+    // Show only on the process root (bpmn:Process); sub-processes use their own version lifecycle
     if (element.type !== 'bpmn:Process')
         return [];
     return [
@@ -859,11 +859,14 @@ class ZenBpmPropertiesProvider {
             if (outputGroup)
                 groups.push(outputGroup);
             // ── Multi-Instance ───────────────────────────────────────────────────
+            // The standard bpmn-js-properties-panel adds zeebe:LoopCharacteristics
+            // entries to the 'multiInstance' group. We replace the entire group with
+            // our zenbpm:LoopCharacteristics entries to avoid duplicate fields.
             const multiInstanceEntries = MultiInstanceProps(element);
             if (multiInstanceEntries.length) {
-                const existingGroup = groups.find((g) => g.id === 'multiInstance');
-                if (existingGroup) {
-                    existingGroup.entries = [...existingGroup.entries, ...multiInstanceEntries];
+                const existingGroupIdx = groups.findIndex((g) => g.id === 'multiInstance');
+                if (existingGroupIdx !== -1) {
+                    groups[existingGroupIdx].entries = multiInstanceEntries;
                 }
                 else {
                     groups.push({
@@ -875,11 +878,15 @@ class ZenBpmPropertiesProvider {
                 }
             }
             // ── Condition expression ─────────────────────────────────────────────
+            // The standard bpmn-js-properties-panel already adds a 'conditionExpression'
+            // entry to the 'condition' group. We replace the entire group so that only
+            // the FEEL-based ZenBPM entry is shown (avoids a duplicate field).
             const conditionEntries = ConditionExpressionProps(element);
             if (conditionEntries.length) {
-                const conditionGroup = groups.find((g) => g.id === 'condition');
-                if (conditionGroup) {
-                    conditionGroup.entries = [...conditionGroup.entries, ...conditionEntries];
+                const conditionGroupIdx = groups.findIndex((g) => g.id === 'condition');
+                if (conditionGroupIdx !== -1) {
+                    // Replace the standard entries with our FEEL entry
+                    groups[conditionGroupIdx].entries = conditionEntries;
                 }
                 else {
                     groups.push({
