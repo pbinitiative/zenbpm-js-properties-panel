@@ -1,9 +1,8 @@
 'use strict';
 
 var propertiesPanel = require('@bpmn-io/properties-panel');
+var preact = require('@bpmn-io/properties-panel/preact');
 var bpmnJsPropertiesPanel = require('bpmn-js-properties-panel');
-
-var n,l,u,s=[];function y(l,u,t){var i,o,r,f={};for(r in u)"key"==r?i=u[r]:"ref"==r?o=u[r]:f[r]=u[r];if(arguments.length>2&&(f.children=arguments.length>3?n.call(arguments,2):t),"function"==typeof l&&null!=l.defaultProps)for(r in l.defaultProps) void 0===f[r]&&(f[r]=l.defaultProps[r]);return d(l,f,i,o,null)}function d(n,t,i,o,r){var f={type:n,props:t,key:i,ref:o,__k:null,__:null,__b:0,__e:null,__d:void 0,__c:null,constructor:void 0,__v:null==r?++u:r,__i:-1,__u:0};return null!=l.vnode&&l.vnode(f),f}n=s.slice,l={__e:function(n,l,u,t){for(var i,o,r;l=l.__;)if((i=l.__c)&&!i.__)try{if((o=i.constructor)&&null!=o.getDerivedStateFromError&&(i.setState(o.getDerivedStateFromError(n)),r=i.__d),null!=i.componentDidCatch&&(i.componentDidCatch(n,t||{}),r=i.__d),r)return i.__E=i}catch(l){n=l;}throw n}},u=0,"function"==typeof Promise?Promise.prototype.then.bind(Promise.resolve()):setTimeout;
 
 function ZenFormProps(element) {
     if (element.type !== 'bpmn:UserTask') {
@@ -44,7 +43,7 @@ function ZenFormDesignButtonEntry(props) {
             detail: { elementId: element.id, value: currentValue },
         }));
     };
-    return y('div', { class: 'bio-properties-panel-entry', style: 'padding: 0 10px 6px' }, y('button', {
+    return preact.createElement('div', { class: 'bio-properties-panel-entry', style: 'padding: 0 10px 6px' }, preact.createElement('button', {
         type: 'button',
         onClick: handleClick,
         style: 'width: 100%; padding: 6px 12px; cursor: pointer; ' +

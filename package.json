@@ -5,13 +5,20 @@
   "main": "dist/index.cjs",
   "module": "dist/index.mjs",
   "types": "dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs",
+      "types": "./dist/types/index.d.ts"
+    }
+  },
   "files": ["dist"],
   "scripts": {
     "build": "rollup -c"
   },
   "keywords": [],
   "license": "MIT",
-  "description": "",
+  "description": "ZenBPM properties panel provider for bpmn-js - adds ZenBPM-specific element properties",
   "devDependencies": {
     "@rollup/plugin-commonjs": "^29.0.2",
     "@rollup/plugin-node-resolve": "^16.0.3",

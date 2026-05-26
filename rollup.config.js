@@ -17,10 +17,13 @@ export default {
       sourcemap: true,
     },
   ],
-  external: [
-    ...Object.keys(pkg.dependencies || {}),
-    ...Object.keys(pkg.peerDependencies || {}),
-  ],
+  external: (id) => {
+    const deps = [
+      ...Object.keys(pkg.dependencies || {}),
+      ...Object.keys(pkg.peerDependencies || {}),
+    ];
+    return deps.some(dep => id === dep || id.startsWith(dep + '/'));
+  },
   plugins: [
     resolve(),
     commonjs(),
