@@ -116,14 +116,20 @@ export class ZenBpmPropertiesProvider {
         }
       }
 
-      // ── Version Tag ──────────────────────────────────────────────────────
-      if (element.type === 'bpmn:Process') {
-        groups.push({
-          id: 'zenbpm-versionTag',
-          label: translate('Version tag'),
-          entries: VersionTagProps(element),
-          component: Group,
-        });
+      // ── Version Tag (appended to General) ───────────────────────────────
+      const versionTagEntries = VersionTagProps(element);
+      if (versionTagEntries.length) {
+        const generalGroup = groups.find((g: any) => g.id === 'general');
+        if (generalGroup) {
+          generalGroup.entries = [...generalGroup.entries, ...versionTagEntries];
+        } else {
+          groups.push({
+            id: 'general',
+            label: translate('General'),
+            entries: versionTagEntries,
+            component: Group,
+          });
+        }
       }
 
       // ── Zen Form ─────────────────────────────────────────────────────────

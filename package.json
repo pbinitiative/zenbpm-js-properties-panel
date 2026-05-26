@@ -16,9 +16,15 @@
   "scripts": {
     "build": "rollup -c"
   },
-  "keywords": [],
+  "keywords": ["bpmn", "bpmn-js", "properties-panel", "zenbpm"],
   "license": "MIT",
   "description": "ZenBPM properties panel provider for bpmn-js - adds ZenBPM-specific element properties",
+  "author": "PB Initiative",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pbinitiative/zenbpm-js-properties-panel"
+  },
+  "homepage": "https://github.com/pbinitiative/zenbpm-js-properties-panel#readme",
   "devDependencies": {
     "@rollup/plugin-commonjs": "^29.0.2",
     "@rollup/plugin-node-resolve": "^16.0.3",

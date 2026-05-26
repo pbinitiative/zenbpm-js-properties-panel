@@ -579,6 +579,7 @@ function createInputMappingGroup(element, injector) {
     const commandStack = injector.get('commandStack');
     const bpmnFactory = injector.get('bpmnFactory');
     const translate = injector.get('translate');
+    const eventBus = injector.get('eventBus');
     const bo = element.businessObject;
     const ioMapping = getExtensionElement(bo, 'zenbpm:IoMapping');
     const inputs = ioMapping?.inputParameters || [];
@@ -600,7 +601,11 @@ function createInputMappingGroup(element, injector) {
         label: translate('Input mapping'),
         component: propertiesPanel.ListGroup,
         items,
-        add: () => addParam(element, bo, bpmnFactory, commandStack, 'zenbpm:Input', 'inputParameters'),
+        add: () => {
+            addParam(element, bo, bpmnFactory, commandStack, 'zenbpm:Input', 'inputParameters');
+            const newId = `${element.id}-zenbpm-input-${inputs.length}`;
+            setTimeout(() => eventBus.fire('propertiesPanel.showEntry', { id: `${newId}-target` }), 0);
+        },
     };
 }
 function createOutputMappingGroup(element, injector) {
@@ -609,6 +614,7 @@ function createOutputMappingGroup(element, injector) {
     const commandStack = injector.get('commandStack');
     const bpmnFactory = injector.get('bpmnFactory');
     const translate = injector.get('translate');
+    const eventBus = injector.get('eventBus');
     const bo = element.businessObject;
     const ioMapping = getExtensionElement(bo, 'zenbpm:IoMapping');
     const outputs = ioMapping?.outputParameters || [];
@@ -630,7 +636,11 @@ function createOutputMappingGroup(element, injector) {
         label: translate('Output mapping'),
         component: propertiesPanel.ListGroup,
         items,
-        add: () => addParam(element, bo, bpmnFactory, commandStack, 'zenbpm:Output', 'outputParameters'),
+        add: () => {
+            addParam(element, bo, bpmnFactory, commandStack, 'zenbpm:Output', 'outputParameters');
+            const newId = `${element.id}-zenbpm-output-${outputs.length}`;
+            setTimeout(() => eventBus.fire('propertiesPanel.showEntry', { id: `${newId}-target` }), 0);
+        },
     };
 }
 
@@ -757,14 +767,21 @@ class ZenBpmPropertiesProvider {
                     });
                 }
             }
-            // ── Version Tag ──────────────────────────────────────────────────────
-            if (element.type === 'bpmn:Process') {
-                groups.push({
-                    id: 'zenbpm-versionTag',
-                    label: translate('Version tag'),
-                    entries: VersionTagProps(element),
-                    component: propertiesPanel.Group,
-                });
+            // ── Version Tag (appended to General) ───────────────────────────────
+            const versionTagEntries = VersionTagProps(element);
+            if (versionTagEntries.length) {
+                const generalGroup = groups.find((g) => g.id === 'general');
+                if (generalGroup) {
+                    generalGroup.entries = [...generalGroup.entries, ...versionTagEntries];
+                }
+                else {
+                    groups.push({
+                        id: 'general',
+                        label: translate('General'),
+                        entries: versionTagEntries,
+                        component: propertiesPanel.Group,
+                    });
+                }
             }
             // ── Zen Form ─────────────────────────────────────────────────────────
             if (element.type === 'bpmn:UserTask') {

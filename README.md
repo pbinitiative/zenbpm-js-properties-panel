@@ -11,8 +11,8 @@ It reads and writes ZenBPM extension elements (defined by [`@pbinitiative/zenbpm
 | Element | Property group | Fields |
 |---|---|---|
 | Service / Rule / Script / Send Task | **Task definition** | Type, Retries |
-| Business Rule Task | **Called decision** | Decision ID, Binding, Version |
-| Call Activity | **Called element** | Process ID, Binding, Version |
+| Business Rule Task | **Called decision** | Decision ID, Result variable |
+| Call Activity | **Called element** | Process ID, Propagate all child variables, Propagate all parent variables |
 | User Task | **Assignment** | Assignee, Candidate groups |
 | User Task | **Task schedule** | Due date, Follow-up date |
 | User Task | **Zen Form** | *Design Form* button (opens form designer) |

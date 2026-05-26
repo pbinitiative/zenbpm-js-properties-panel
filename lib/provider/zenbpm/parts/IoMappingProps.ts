@@ -95,6 +95,7 @@ export function createInputMappingGroup(element: any, injector: any): any | null
   const commandStack = injector.get('commandStack');
   const bpmnFactory  = injector.get('bpmnFactory');
   const translate    = injector.get('translate');
+  const eventBus     = injector.get('eventBus');
 
   const bo        = element.businessObject;
   const ioMapping  = getExtensionElement(bo, 'zenbpm:IoMapping');
@@ -119,7 +120,11 @@ export function createInputMappingGroup(element: any, injector: any): any | null
     label: translate('Input mapping'),
     component: ListGroup,
     items,
-    add: () => addParam(element, bo, bpmnFactory, commandStack, 'zenbpm:Input', 'inputParameters'),
+    add: () => {
+      addParam(element, bo, bpmnFactory, commandStack, 'zenbpm:Input', 'inputParameters');
+      const newId = `${element.id}-zenbpm-input-${inputs.length}`;
+      setTimeout(() => eventBus.fire('propertiesPanel.showEntry', { id: `${newId}-target` }), 0);
+    },
   };
 }
 
@@ -129,6 +134,7 @@ export function createOutputMappingGroup(element: any, injector: any): any | nul
   const commandStack = injector.get('commandStack');
   const bpmnFactory  = injector.get('bpmnFactory');
   const translate    = injector.get('translate');
+  const eventBus     = injector.get('eventBus');
 
   const bo        = element.businessObject;
   const ioMapping  = getExtensionElement(bo, 'zenbpm:IoMapping');
@@ -153,6 +159,10 @@ export function createOutputMappingGroup(element: any, injector: any): any | nul
     label: translate('Output mapping'),
     component: ListGroup,
     items,
-    add: () => addParam(element, bo, bpmnFactory, commandStack, 'zenbpm:Output', 'outputParameters'),
+    add: () => {
+      addParam(element, bo, bpmnFactory, commandStack, 'zenbpm:Output', 'outputParameters');
+      const newId = `${element.id}-zenbpm-output-${outputs.length}`;
+      setTimeout(() => eventBus.fire('propertiesPanel.showEntry', { id: `${newId}-target` }), 0);
+    },
   };
 }
