@@ -12,12 +12,19 @@
       "types": "./dist/types/index.d.ts"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "rollup -c",
     "prepublishOnly": "rm -rf dist && rollup -c"
   },
-  "keywords": ["bpmn", "bpmn-js", "properties-panel", "zenbpm"],
+  "keywords": [
+    "bpmn",
+    "bpmn-js",
+    "properties-panel",
+    "zenbpm"
+  ],
   "license": "MIT",
   "description": "ZenBPM properties panel provider for bpmn-js - adds ZenBPM-specific element properties",
   "author": "PB Initiative",
