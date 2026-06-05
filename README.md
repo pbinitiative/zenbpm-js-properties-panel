@@ -75,6 +75,31 @@ const modeler = new BpmnModeler({
 
 ---
 
+## Zeebe / Camunda 8 file compatibility
+
+The ZenBPM moddle is a fork of the [Zeebe moddle](https://github.com/camunda/zeebe-bpmn-moddle). The element structures are compatible:
+
+| Engine | Namespace URI |
+|---|---|
+| Zeebe / Camunda 8 | `http://camunda.org/schema/zeebe/1.0` |
+| ZenBPM | `http://zenbpm.pbinitiative.org/1.0` |
+
+The package exports a **`normalizeZeebeXml`** utility that rewrites the namespace before import. Call it once, immediately before passing XML to `modeler.importXML()` — no other changes are needed:
+
+```ts
+import BpmnModeler from 'bpmn-js/lib/Modeler';
+import { ZenBpmPropertiesProviderModule, normalizeZeebeXml } from '@pbinitiative/zenbpm-js-properties-panel';
+import ZenbpmModdle from '@pbinitiative/zenbpm-bpmn-moddle';
+
+const rawXml = await fetchMyBpmnFile();
+
+await modeler.importXML(normalizeZeebeXml(rawXml));
+```
+
+> **Note:** The transformation is purely textual (a namespace URI string replacement and rewrite `zeebe` namespace to `zenbpm`). It does not validate the XML or change element names, attributes, or the diagram layout. It is safe to call on any BPMN string, including files that already use the `zenbpm` namespace (they are returned unchanged).
+
+---
+
 ## Zen Form designer integration
 
 The **Design Form** button in the *Zen Form* group dispatches a native DOM `CustomEvent` that your application can listen to:

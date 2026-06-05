@@ -930,5 +930,14 @@ var index = {
     zenbpmPropertiesProvider: ['type', ZenBpmPropertiesProvider]
 };
 
-export { index as ZenBpmPropertiesProviderModule };
+const ZEEBE_NAMESPACE_URI = 'xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"';
+const ZENBPM_NAMESPACE_URI = 'xmlns:zenbpm="http://zenbpm.pbinitiative.org/1.0"';
+function normalizeZeebeXml(xml) {
+    return xml
+        .replace(new RegExp(ZEEBE_NAMESPACE_URI, 'g'), ZENBPM_NAMESPACE_URI)
+        .replace(new RegExp("<zeebe:", 'g'), "<zenbpm:")
+        .replace(new RegExp("</zeebe:", 'g'), "</zenbpm:");
+}
+
+export { index as ZenBpmPropertiesProviderModule, normalizeZeebeXml };
 //# sourceMappingURL=index.mjs.map
