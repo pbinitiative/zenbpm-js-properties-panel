@@ -1,5 +1,5 @@
 import { Group, ListGroup } from '@bpmn-io/properties-panel';
-import { ZenFormProps } from './parts/ZenFormProps';
+import { ZenFormProps, setupFormSaveHandler } from './parts/ZenFormProps';
 import { TaskDefinitionProps, isServiceTaskLike } from './parts/TaskDefinitionProps';
 import { AssignmentDefinitionProps } from './parts/AssignmentDefinitionProps';
 import { CalledElementProps } from './parts/CalledElementProps';
@@ -20,6 +20,10 @@ export class ZenBpmPropertiesProvider {
   constructor(propertiesPanel: any, injector: any) {
     this._injector = injector;
     propertiesPanel.registerProvider(PROVIDER_PRIORITY, this);
+
+    // When the Zen Form editor is submitted, scan form field variables
+    // and automatically add them to the output mapping.
+    setupFormSaveHandler(injector);
   }
 
   getGroups(element: any) {

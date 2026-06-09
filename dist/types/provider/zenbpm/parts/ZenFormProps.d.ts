@@ -4,4 +4,5 @@ export declare function ZenFormProps(element: any): {
     isEdited: () => boolean;
 }[];
 declare function ZenFormDesignButtonEntry(props: any): any;
+export declare function setupFormSaveHandler(injector: any): void;
 export {};
