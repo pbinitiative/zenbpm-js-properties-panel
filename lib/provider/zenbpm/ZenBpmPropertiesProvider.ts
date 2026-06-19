@@ -9,6 +9,7 @@ import { VersionTagProps } from './parts/VersionTagProps';
 import { MultiInstanceProps } from './parts/MultiInstanceProps';
 import { createInputMappingGroup, createOutputMappingGroup } from './parts/IoMappingProps';
 import { ConditionExpressionProps } from './parts/ConditionExpressionProps';
+import { CorrelationKeyProps } from './parts/CorrelationKeyProps';
 
 const PROVIDER_PRIORITY = 500;
 
@@ -108,6 +109,24 @@ export class ZenBpmPropertiesProvider {
             id: 'multiInstance',
             label: translate('Multi-instance'),
             entries: multiInstanceEntries,
+            component: Group,
+          });
+        }
+      }
+
+      // ── Message subscription correlation key ────────────────────────────
+      // Appended to the standard 'message' group (created by bpmn-js-properties-panel)
+      // so it sits right under the message name, mirroring the zeebe:Subscription UX.
+      const correlationKeyEntries = CorrelationKeyProps(element);
+      if (correlationKeyEntries.length) {
+        const messageGroup = groups.find((g: any) => g.id === 'message');
+        if (messageGroup) {
+          messageGroup.entries = [...messageGroup.entries, ...correlationKeyEntries];
+        } else {
+          groups.push({
+            id: 'message',
+            label: translate('Message'),
+            entries: correlationKeyEntries,
             component: Group,
           });
         }

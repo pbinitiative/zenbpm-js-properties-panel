@@ -22,6 +22,7 @@ It reads and writes ZenBPM extension elements (defined by [`@pbinitiative/zenbpm
 | Multi-instance elements | **Multi-instance** | Input collection, Element variable, Output collection, Output element, Completion condition |
 | Sequence flows / boundary events | **Condition** | Condition expression (FEEL) |
 | Process | **Version tag** | Tag value |
+| Message catch events (Intermediate Catch Event, Boundary Event), Start Event in event sub-process | **Message** | Subscription correlation key (FEEL) |
 
 > \* The **Version tag** text field only appears when you select *Version tag* from the **Binding** dropdown. The Binding dropdown has three options: *Latest* (always use the newest deployed version), *Deployment* (use the version deployed together with this process), and *Version tag* (use a specific version identified by a tag string).
 
