@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:zenbpm="http://zenbpm.pbinitiative.org/1.0"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_1"
+                  targetNamespace="http://bpmn.io/schema/bpmn">
+
+  <bpmn:process id="Process_1" isExecutable="false">
+
+    <bpmn:serviceTask id="ServiceTask_twoInputs" name="Two inputs">
+      <bpmn:extensionElements>
+        <zenbpm:ioMapping>
+          <zenbpm:input source="=a" target="x" />
+          <zenbpm:input source="=b" target="y" />
+        </zenbpm:ioMapping>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="ServiceTask_oneInput" name="One input">
+      <bpmn:extensionElements>
+        <zenbpm:ioMapping>
+          <zenbpm:input source="=a" target="x" />
+        </zenbpm:ioMapping>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="ServiceTask_oneOutput" name="One output">
+      <bpmn:extensionElements>
+        <zenbpm:ioMapping>
+          <zenbpm:output source="=x" target="y" />
+        </zenbpm:ioMapping>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="UserTask_withAssignmentAndMapping" name="Assignment + mapping">
+      <bpmn:extensionElements>
+        <zenbpm:ioMapping>
+          <zenbpm:input source="=a" target="x" />
+        </zenbpm:ioMapping>
+        <zenbpm:assignmentDefinition assignee="bob" />
+      </bpmn:extensionElements>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="ServiceTask_empty" name="No mappings" />
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="ServiceTask_twoInputs_di" bpmnElement="ServiceTask_twoInputs">
+        <dc:Bounds x="100" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_oneInput_di" bpmnElement="ServiceTask_oneInput">
+        <dc:Bounds x="240" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_oneOutput_di" bpmnElement="ServiceTask_oneOutput">
+        <dc:Bounds x="380" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_withAssignmentAndMapping_di" bpmnElement="UserTask_withAssignmentAndMapping">
+        <dc:Bounds x="520" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_empty_di" bpmnElement="ServiceTask_empty">
+        <dc:Bounds x="660" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

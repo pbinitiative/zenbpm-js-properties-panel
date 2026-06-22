@@ -10,6 +10,7 @@ import { MultiInstanceProps } from './parts/MultiInstanceProps';
 import { createInputMappingGroup, createOutputMappingGroup } from './parts/IoMappingProps';
 import { ConditionExpressionProps } from './parts/ConditionExpressionProps';
 import { CorrelationKeyProps } from './parts/CorrelationKeyProps';
+import { ExtensionPropertiesGroup } from './parts/ExtensionPropertiesProps';
 
 const PROVIDER_PRIORITY = 500;
 
@@ -177,6 +178,14 @@ export class ZenBpmPropertiesProvider {
           component: Group,
         });
       }
+
+      // ── Extension properties (zenbpm:Properties / zenbpm:Property) ──────
+      // Generic key/value list available on any element. Mirrors Zeebe's
+      // zeebe:Properties/zeebe:Property; in ZenBPM it is used to attach
+      // arbitrary metadata (e.g. the ZEN_FORM JSON for a UserTask) and is
+      // preserved on round-trip even though the engine does not read the
+      // values at runtime.
+      groups.push(ExtensionPropertiesGroup(element, this._injector));
 
       return groups;
     };

@@ -234,6 +234,23 @@ function updateExtensionElementProps(element, bo, type, props, bpmnFactory, comm
     commandStack.execute('properties-panel.multi-command-executor', commands);
 }
 /**
+ * Remove all extension elements of `type` from `bo`. No-op if none exist.
+ * Executes a single undoable command.
+ */
+function removeExtensionElement(element, bo, type, commandStack) {
+    const extensionElements = bo.extensionElements;
+    if (!extensionElements)
+        return;
+    const matching = (extensionElements.values || []).filter((e) => e.$instanceOf(type));
+    if (!matching.length)
+        return;
+    commandStack.execute('element.updateModdleProperties', {
+        element,
+        moddleElement: extensionElements,
+        properties: { values: (extensionElements.values || []).filter((e) => !e.$instanceOf(type)) },
+    });
+}
+/**
  * Atomically swap extension elements: remove all instances of `removeType` and
  * ensure exactly one instance of `createType` exists.  Both changes land as a
  * single undoable step via `properties-panel.multi-command-executor`.
@@ -400,6 +417,44 @@ const CandidateGroupsEntry = makeFeelEntry('zenbpm-assign-candidateGroups', 'Can
 const CandidateUsersEntry = makeFeelEntry('zenbpm-assign-candidateUsers', 'Candidate users', 'zenbpm:AssignmentDefinition', 'candidateUsers');
 const DueDateEntry = makeFeelEntry('zenbpm-assign-dueDate', 'Due date', 'zenbpm:TaskSchedule', 'dueDate');
 const FollowUpDateEntry = makeFeelEntry('zenbpm-assign-followUpDate', 'Follow-up date', 'zenbpm:TaskSchedule', 'followUpDate');
+function PriorityEntry(props) {
+    const { element } = props;
+    const commandStack = bpmnJsPropertiesPanel.useService('commandStack');
+    const bpmnFactory = bpmnJsPropertiesPanel.useService('bpmnFactory');
+    const translate = bpmnJsPropertiesPanel.useService('translate');
+    const debounce = bpmnJsPropertiesPanel.useService('debounceInput');
+    const bo = element.businessObject;
+    const getValue = () => getExtensionElement(bo, 'zenbpm:PriorityDefinition')?.priority ?? '';
+    const setValue = (value) => {
+        const priorityDefinition = getExtensionElement(bo, 'zenbpm:PriorityDefinition');
+        const isNullValue = value === null || value === '' || value === undefined;
+        if (priorityDefinition && isNullValue) {
+            // clear → remove the priority definition
+            removeExtensionElement(element, bo, 'zenbpm:PriorityDefinition', commandStack);
+        }
+        else if (priorityDefinition && !isNullValue) {
+            // update in place
+            commandStack.execute('element.updateModdleProperties', {
+                element,
+                moddleElement: priorityDefinition,
+                properties: { priority: value },
+            });
+        }
+        else if (!priorityDefinition && !isNullValue) {
+            // create (handles container creation atomically)
+            updateExtensionElementProps(element, bo, 'zenbpm:PriorityDefinition', { priority: value }, bpmnFactory, commandStack);
+        }
+    };
+    return propertiesPanel.FeelEntry({
+        element,
+        id: 'zenbpm-assign-priority',
+        label: translate('Priority'),
+        feel: 'optional',
+        getValue,
+        setValue,
+        debounce,
+    });
+}
 // ─── exported entry list ─────────────────────────────────────────────────────
 function AssignmentDefinitionProps(element) {
     if (element.type !== 'bpmn:UserTask')
@@ -410,6 +465,7 @@ function AssignmentDefinitionProps(element) {
         { id: 'zenbpm-assign-candidateUsers', component: CandidateUsersEntry, isEdited: propertiesPanel.isFeelEntryEdited },
         { id: 'zenbpm-assign-dueDate', component: DueDateEntry, isEdited: propertiesPanel.isFeelEntryEdited },
         { id: 'zenbpm-assign-followUpDate', component: FollowUpDateEntry, isEdited: propertiesPanel.isFeelEntryEdited },
+        { id: 'zenbpm-assign-priority', component: PriorityEntry, isEdited: propertiesPanel.isFeelEntryEdited },
     ];
 }
 
@@ -934,6 +990,9 @@ const ID = 'zenbpm-messageSubscriptionCorrelationKey';
  */
 function getMessage(element) {
     const bo = element.businessObject;
+    if (!bo) {
+        return undefined;
+    }
     const eventDefinitions = bo.eventDefinitions || [];
     for (const def of eventDefinitions) {
         if (def.$type === 'bpmn:MessageEventDefinition') {
@@ -963,6 +1022,9 @@ function getMessage(element) {
  */
 function canHaveSubscriptionCorrelationKey(element) {
     const bo = element.businessObject;
+    if (!bo) {
+        return false;
+    }
     if (bo.$type === 'bpmn:IntermediateCatchEvent' || bo.$type === 'bpmn:BoundaryEvent') {
         return !!getMessage(element);
     }
@@ -1012,6 +1074,134 @@ function CorrelationKeyProps(element) {
     return [
         { id: ID, component: MessageSubscriptionCorrelationKeyEntry, isEdited: propertiesPanel.isFeelEntryEdited },
     ];
+}
+
+const TYPE_PROPERTIES = 'zenbpm:Properties';
+const TYPE_PROPERTY = 'zenbpm:Property';
+// ─── accessors ───────────────────────────────────────────────────────────────
+function getProperties(element) {
+    return getExtensionElement(element.businessObject, TYPE_PROPERTIES);
+}
+function getPropertiesList(element) {
+    const properties = getProperties(element);
+    return properties ? (properties.get('properties') || []) : [];
+}
+// ─── item entry factory (one component per item) ────────────────────────────
+function makePropertyEntry(id, element, property, field) {
+    return function PropertyEntry(_props) {
+        const commandStack = bpmnJsPropertiesPanel.useService('commandStack');
+        const translate = bpmnJsPropertiesPanel.useService('translate');
+        const debounce = bpmnJsPropertiesPanel.useService('debounceInput');
+        const getValue = () => (property.get(field) || '');
+        const setValue = (value) => commandStack.execute('element.updateModdleProperties', {
+            element,
+            moddleElement: property,
+            properties: { [field]: value },
+        });
+        return propertiesPanel.TextFieldEntry({
+            element: property,
+            id,
+            label: translate(field === 'name' ? 'Name' : 'Value'),
+            getValue,
+            setValue,
+            debounce,
+        });
+    };
+}
+// ─── add / remove ────────────────────────────────────────────────────────────
+function addProperty(element, bpmnFactory, commandStack, eventBus, currentCount) {
+    const bo = element.businessObject;
+    const commands = [];
+    let extensionElements = bo.extensionElements;
+    // (1) ensure bpmn:ExtensionElements
+    if (!extensionElements) {
+        extensionElements = bpmnFactory.create('bpmn:ExtensionElements', { values: [] });
+        extensionElements.$parent = bo;
+        commands.push({
+            cmd: 'element.updateModdleProperties',
+            context: { element, moddleElement: bo, properties: { extensionElements } },
+        });
+    }
+    // (2) ensure zenbpm:Properties container (re-use if present)
+    let properties = (extensionElements.values || []).find((e) => e.$instanceOf(TYPE_PROPERTIES));
+    if (!properties) {
+        properties = bpmnFactory.create(TYPE_PROPERTIES, { properties: [] });
+        properties.$parent = extensionElements;
+        commands.push({
+            cmd: 'element.updateModdleProperties',
+            context: {
+                element,
+                moddleElement: extensionElements,
+                properties: { values: [...(extensionElements.values || []), properties] },
+            },
+        });
+    }
+    // (3) create the new zenbpm:Property and append it to the container's `properties` list
+    const created = bpmnFactory.create(TYPE_PROPERTY, { name: '', value: '' });
+    created.$parent = properties;
+    commands.push({
+        cmd: 'element.updateModdleProperties',
+        context: {
+            element,
+            moddleElement: properties,
+            properties: { properties: [...(properties.get('properties') || []), created] },
+        },
+    });
+    commandStack.execute('properties-panel.multi-command-executor', commands);
+    const newId = `${element.id}-zenbpm-extensionProperty-${currentCount}`;
+    setTimeout(() => eventBus.fire('propertiesPanel.showEntry', { id: `${newId}-name` }), 0);
+}
+function removeProperty(element, property, commandStack) {
+    const properties = getProperties(element);
+    if (!properties)
+        return;
+    const remaining = (properties.get('properties') || []).filter((p) => p !== property);
+    if (remaining.length) {
+        commandStack.execute('element.updateModdleProperties', {
+            element,
+            moddleElement: properties,
+            properties: { properties: remaining },
+        });
+    }
+    else {
+        // last one removed → drop the whole `zenbpm:Properties` container too
+        const extensionElements = element.businessObject.extensionElements;
+        commandStack.execute('element.updateModdleProperties', {
+            element,
+            moddleElement: extensionElements,
+            properties: {
+                values: (extensionElements.values || []).filter((e) => !e.$instanceOf(TYPE_PROPERTIES)),
+            },
+        });
+    }
+}
+// ─── exported group factory ──────────────────────────────────────────────────
+function ExtensionPropertiesGroup(element, injector) {
+    const commandStack = injector.get('commandStack');
+    const bpmnFactory = injector.get('bpmnFactory');
+    const translate = injector.get('translate');
+    const eventBus = injector.get('eventBus');
+    const list = getPropertiesList(element);
+    const items = list.map((property, index) => {
+        const id = `${element.id}-zenbpm-extensionProperty-${index}`;
+        return {
+            id,
+            label: property.get('name') || translate('<empty>'),
+            entries: [
+                { id: `${id}-name`, component: makePropertyEntry(`${id}-name`, element, property, 'name'), isEdited: propertiesPanel.isTextFieldEntryEdited },
+                { id: `${id}-value`, component: makePropertyEntry(`${id}-value`, element, property, 'value'), isEdited: propertiesPanel.isTextFieldEntryEdited },
+            ],
+            autoFocusEntry: `${id}-name`,
+            remove: () => removeProperty(element, property, commandStack),
+        };
+    });
+    return {
+        id: 'zenbpm-extensionProperties',
+        label: translate('Extension properties'),
+        component: propertiesPanel.ListGroup,
+        items,
+        add: () => addProperty(element, bpmnFactory, commandStack, eventBus, list.length),
+    };
 }
 
 const PROVIDER_PRIORITY = 500;
@@ -1167,6 +1357,13 @@ class ZenBpmPropertiesProvider {
                     component: propertiesPanel.Group,
                 });
             }
+            // ── Extension properties (zenbpm:Properties / zenbpm:Property) ──────
+            // Generic key/value list available on any element. Mirrors Zeebe's
+            // zeebe:Properties/zeebe:Property; in ZenBPM it is used to attach
+            // arbitrary metadata (e.g. the ZEN_FORM JSON for a UserTask) and is
+            // preserved on round-trip even though the engine does not read the
+            // values at runtime.
+            groups.push(ExtensionPropertiesGroup(element, this._injector));
             return groups;
         };
     }

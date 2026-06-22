@@ -62,6 +62,27 @@ export function updateExtensionElementProps(
 }
 
 /**
+ * Remove all extension elements of `type` from `bo`. No-op if none exist.
+ * Executes a single undoable command.
+ */
+export function removeExtensionElement(
+  element: any,
+  bo: any,
+  type: string,
+  commandStack: any,
+): void {
+  const extensionElements = bo.extensionElements;
+  if (!extensionElements) return;
+  const matching = (extensionElements.values || []).filter((e: any) => e.$instanceOf(type));
+  if (!matching.length) return;
+  commandStack.execute('element.updateModdleProperties', {
+    element,
+    moddleElement: extensionElements,
+    properties: { values: (extensionElements.values || []).filter((e: any) => !e.$instanceOf(type)) },
+  });
+}
+
+/**
  * Atomically swap extension elements: remove all instances of `removeType` and
  * ensure exactly one instance of `createType` exists.  Both changes land as a
  * single undoable step via `properties-panel.multi-command-executor`.

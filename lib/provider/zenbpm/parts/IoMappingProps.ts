@@ -82,11 +82,36 @@ function removeParam(
   listProp: 'inputParameters' | 'outputParameters',
   commandStack: any,
 ) {
-  commandStack.execute('element.updateModdleProperties', {
-    element,
-    moddleElement: ioMapping,
-    properties: { [listProp]: (ioMapping[listProp] || []).filter((p: any) => p !== param) },
-  });
+  const remaining = (ioMapping[listProp] || []).filter((p: any) => p !== param);
+  const otherProp: 'inputParameters' | 'outputParameters' =
+    listProp === 'inputParameters' ? 'outputParameters' : 'inputParameters';
+  const otherRemaining = ioMapping[otherProp] || [];
+
+  if (remaining.length > 0 || otherRemaining.length > 0) {
+    commandStack.execute('element.updateModdleProperties', {
+      element,
+      moddleElement: ioMapping,
+      properties: { [listProp]: remaining },
+    });
+    return;
+  }
+
+  const extensionElements = element.businessObject.extensionElements;
+  const newValues = (extensionElements.values || []).filter((e: any) => e !== ioMapping);
+
+  if (newValues.length === 0) {
+    commandStack.execute('element.updateModdleProperties', {
+      element,
+      moddleElement: element.businessObject,
+      properties: { extensionElements: undefined },
+    });
+  } else {
+    commandStack.execute('element.updateModdleProperties', {
+      element,
+      moddleElement: extensionElements,
+      properties: { values: newValues },
+    });
+  }
 }
 
 export function createInputMappingGroup(element: any, injector: any): any | null {
