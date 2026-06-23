@@ -1,2 +1,2 @@
 export { default as ZenBpmPropertiesProviderModule } from './provider/zenbpm';
-export { normalizeZeebeXml } from './util/NormalizeNamespace';
+export { normalizeZeebeXml, denormalizeToZeebeXml, } from './util/NormalizeNamespace';

@@ -8,6 +8,7 @@ import {
 import { useService } from 'bpmn-js-properties-panel';
 import { getExtensionElement } from '../../../util/ExtensionElementsUtil';
 import { getFeelValue } from '../../../util/FeelUtil';
+import { ZEN_FORM } from './ZenFormProps';
 
 const IO_ELEMENTS = new Set([
   'bpmn:ServiceTask', 'bpmn:BusinessRuleTask', 'bpmn:SendTask', 'bpmn:ScriptTask',
@@ -20,6 +21,13 @@ const OUTPUT_ONLY_ELEMENTS = new Set([
   'bpmn:BoundaryEvent',
 ]);
 
+/**
+ * Input mapping targets that are system-managed and must not appear in the
+ * modeller-facing input mapping list. The underlying `zenbpm:Input` is left
+ * untouched in the model — it is only hidden from the rendered UI.
+ */
+const HIDDEN_INPUT_TARGETS: ReadonlySet<string> = new Set([ ZEN_FORM ]);
+
 export function supportsInputMapping(element: any): boolean {
   return IO_ELEMENTS.has(element.type);
 }
@@ -28,25 +36,32 @@ export function supportsOutputMapping(element: any): boolean {
   return IO_ELEMENTS.has(element.type) || OUTPUT_ONLY_ELEMENTS.has(element.type);
 }
 
-function makeParamEntry(id: string, labelKey: string, prop: 'source' | 'target', element: any, param: any) {
-  return function ParamEntry(_props: any) {
-    const commandStack = useService('commandStack');
-    const translate    = useService('translate');
-    const debounce     = useService('debounceInput');
+// `ParamEntry` is defined at module scope so its function reference never
+// changes. See the matching comment in `ExtensionPropertiesProps.ts` — the
+// previous `makeParamEntry` factory returned a new function on every render,
+// which made Preact remount the input ~600ms after the user started typing
+// and dropped keyboard focus.
+function ParamEntry(props: any) {
+  const { element: bpmnElement, param, prop, id, labelKey } = props;
 
-    const getValue = () =>
-      prop === 'source' ? getFeelValue((param as any)[prop]) : ((param as any)[prop] || '');
-    const setValue = (value: string) =>
-      commandStack.execute('element.updateModdleProperties', {
-        element,
-        moddleElement: param,
-        properties: { [prop]: value },
-      });
+  const commandStack = useService('commandStack');
+  const translate    = useService('translate');
+  const debounce     = useService('debounceInput');
 
-    return prop === 'source'
-      ? FeelEntry({ element, id, label: translate(labelKey), feel: 'required', getValue, setValue, debounce })
-      : TextFieldEntry({ element, id, label: translate(labelKey), getValue, setValue, debounce });
-  };
+  const getValue = () =>
+    prop === 'source' ? getFeelValue((param as any)[prop]) : ((param as any)[prop] || '');
+  const setValue = (value: string) =>
+    commandStack.execute('element.updateModdleProperties', {
+      element: bpmnElement,
+      moddleElement: param,
+      properties: { [prop]: value },
+    });
+
+  const label = translate(labelKey);
+
+  return prop === 'source'
+    ? FeelEntry({ element: bpmnElement, id, label, feel: 'required', getValue, setValue, debounce })
+    : TextFieldEntry({ element: bpmnElement, id, label, getValue, setValue, debounce });
 }
 
 function addParam(
@@ -126,19 +141,44 @@ export function createInputMappingGroup(element: any, injector: any): any | null
   const ioMapping  = getExtensionElement(bo, 'zenbpm:IoMapping');
   const inputs: any[] = ioMapping?.inputParameters || [];
 
-  const items = inputs.map((input: any, index: number) => {
-    const id = `${element.id}-zenbpm-input-${index}`;
-    return {
-      id,
-      label: input.target || translate('<empty>'),
-      entries: [
-        { id: `${id}-source`, component: makeParamEntry(`${id}-source`, 'Source expression', 'source', element, input), isEdited: isFeelEntryEdited },
-        { id: `${id}-target`, component: makeParamEntry(`${id}-target`, 'Target variable',   'target', element, input), isEdited: isTextFieldEntryEdited },
-      ],
-      autoFocusEntry: `${id}-target`,
-      remove: () => removeParam(element, ioMapping, input, 'inputParameters', commandStack),
-    };
-  });
+  // Hide system-managed targets (e.g. ZEN_FORM) from the modeller-facing
+  // list. The underlying `zenbpm:Input` is left in the model so form data
+  // round-trips; only the rendered row is suppressed. We keep the original
+  // underlying index in the item id so the `add` callback's `inputs.length`
+  // computation stays consistent with the position new params get appended at.
+  const items = inputs
+    .map((input: any, index: number) => {
+      if (HIDDEN_INPUT_TARGETS.has(input.target)) {
+        return null;
+      }
+      const id = `${element.id}-zenbpm-input-${index}`;
+      return {
+        id,
+        label: input.target || translate('<empty>'),
+        entries: [
+          {
+            id: `${id}-source`,
+            component: ParamEntry,
+            isEdited: isFeelEntryEdited,
+            // extras consumed by `ParamEntry` (spread into props by CollapsibleEntry):
+            param: input,
+            prop: 'source',
+            labelKey: 'Source expression',
+          },
+          {
+            id: `${id}-target`,
+            component: ParamEntry,
+            isEdited: isTextFieldEntryEdited,
+            param: input,
+            prop: 'target',
+            labelKey: 'Target variable',
+          },
+        ],
+        autoFocusEntry: `${id}-target`,
+        remove: () => removeParam(element, ioMapping, input, 'inputParameters', commandStack),
+      };
+    })
+    .filter((item: any) => item !== null);
 
   return {
     id: 'zenbpm-ioMapping-inputs',
@@ -171,8 +211,22 @@ export function createOutputMappingGroup(element: any, injector: any): any | nul
       id,
       label: output.target || translate('<empty>'),
       entries: [
-        { id: `${id}-source`, component: makeParamEntry(`${id}-source`, 'Source expression', 'source', element, output), isEdited: isFeelEntryEdited },
-        { id: `${id}-target`, component: makeParamEntry(`${id}-target`, 'Target variable',   'target', element, output), isEdited: isTextFieldEntryEdited },
+        {
+          id: `${id}-source`,
+          component: ParamEntry,
+          isEdited: isFeelEntryEdited,
+          param: output,
+          prop: 'source',
+          labelKey: 'Source expression',
+        },
+        {
+          id: `${id}-target`,
+          component: ParamEntry,
+          isEdited: isTextFieldEntryEdited,
+          param: output,
+          prop: 'target',
+          labelKey: 'Target variable',
+        },
       ],
       autoFocusEntry: `${id}-target`,
       remove: () => removeParam(element, ioMapping, output, 'outputParameters', commandStack),

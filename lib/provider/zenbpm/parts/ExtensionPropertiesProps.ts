@@ -1,10 +1,14 @@
 import {
   TextFieldEntry,
+  TextAreaEntry,
   ListGroup,
   isTextFieldEntryEdited,
+  isTextAreaEntryEdited,
 } from '@bpmn-io/properties-panel';
 import { useService } from 'bpmn-js-properties-panel';
 import { getExtensionElement } from '../../../util/ExtensionElementsUtil';
+import { isModelerPropertyName, validateJson } from '../../../util/ValidationUtil';
+import { isExampleDataPropertyName } from './ExampleDataProps';
 
 const TYPE_PROPERTIES = 'zenbpm:Properties';
 const TYPE_PROPERTY = 'zenbpm:Property';
@@ -20,31 +24,61 @@ export function getPropertiesList(element: any): any[] {
   return properties ? (properties.get('properties') || []) : [];
 }
 
-// ─── item entry factory (one component per item) ────────────────────────────
+// ─── per-row component (stable identity across re-renders) ──────────────────
+//
+// `PropertyEntry` is defined at module scope so its function reference never
+// changes. The bpmn-io properties-panel re-renders the whole group on every
+// `elements.changed` event (fired by the debounced commit ~600ms after the
+// user stops typing), and Preact's keyed reconciler unmounts/remounts a row
+// whose `type` changed — which previously made the input lose focus while
+// typing. An earlier version of this code used a `makePropertyEntry` factory
+// that returned a brand-new function on every render, causing exactly that
+// remount. Routing the moddle element and the edited field through the
+// entry descriptor (which `CollapsibleEntry` spreads into the component's
+// props) keeps the component identity stable and preserves focus.
 
-function makePropertyEntry(id: string, element: any, property: any, field: 'name' | 'value') {
-  return function PropertyEntry(_props: any) {
-    const commandStack = useService('commandStack');
-    const translate    = useService('translate');
-    const debounce     = useService('debounceInput');
+function PropertyEntry(props: any) {
+  const { element: bpmnElement, property, field, id } = props;
 
-    const getValue = () => (property.get(field) || '');
-    const setValue = (value: string) =>
-      commandStack.execute('element.updateModdleProperties', {
-        element,
-        moddleElement: property,
-        properties: { [field]: value },
-      });
+  const commandStack = useService('commandStack');
+  const translate    = useService('translate');
+  const debounce     = useService('debounceInput');
 
-    return TextFieldEntry({
+  const getValue = () => (property.get(field) || '');
+  const setValue = (value: string) =>
+    commandStack.execute('element.updateModdleProperties', {
+      element: bpmnElement,
+      moddleElement: property,
+      properties: { [field]: value },
+    });
+
+  const label = translate(field === 'name' ? 'Name' : 'Value');
+
+  // For the value of a `*Modeler:*` property we switch to a multi-line
+  // textarea and JSON-validate the input. The name field stays a single-line
+  // text input — names are short identifiers, not JSON blobs.
+  if (field === 'value' && isModelerPropertyName(property.get('name'))) {
+    return TextAreaEntry({
       element: property,
       id,
-      label: translate(field === 'name' ? 'Name' : 'Value'),
+      label,
       getValue,
       setValue,
       debounce,
+      isEdited: isTextAreaEntryEdited,
+      validate: validateJson,
     });
-  };
+  }
+
+  return TextFieldEntry({
+    element: property,
+    id,
+    label,
+    getValue,
+    setValue,
+    debounce,
+    isEdited: isTextFieldEntryEdited,
+  });
 }
 
 // ─── add / remove ────────────────────────────────────────────────────────────
@@ -133,14 +167,32 @@ export function ExtensionPropertiesGroup(element: any, injector: any): any | nul
 
   const list: any[] = getPropertiesList(element);
 
-  const items = list.map((property: any, index: number) => {
+  // Example-data properties (e.g. `zenbpmModeler:exampleOutputJson`) are
+  // surfaced in the dedicated "Example data" group instead, so they must
+  // not appear here.
+  const visibleList = list.filter((p: any) => !isExampleDataPropertyName(p.get('name')));
+
+  const items = visibleList.map((property: any, index: number) => {
     const id = `${element.id}-zenbpm-extensionProperty-${index}`;
     return {
       id,
       label: property.get('name') || translate('<empty>'),
       entries: [
-        { id: `${id}-name`,  component: makePropertyEntry(`${id}-name`,  element, property, 'name'),  isEdited: isTextFieldEntryEdited },
-        { id: `${id}-value`, component: makePropertyEntry(`${id}-value`, element, property, 'value'), isEdited: isTextFieldEntryEdited },
+        {
+          id: `${id}-name`,
+          component: PropertyEntry,
+          isEdited: isTextFieldEntryEdited,
+          // extras consumed by `PropertyEntry` (spread into props by CollapsibleEntry):
+          property,
+          field: 'name',
+        },
+        {
+          id: `${id}-value`,
+          component: PropertyEntry,
+          isEdited: isTextFieldEntryEdited,
+          property,
+          field: 'value',
+        },
       ],
       autoFocusEntry: `${id}-name`,
       remove: () => removeProperty(element, property, commandStack),

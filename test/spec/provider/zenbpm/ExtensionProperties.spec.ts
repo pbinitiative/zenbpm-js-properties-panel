@@ -207,4 +207,163 @@ describe('provider/zenbpm - ExtensionProperties', function() {
     expect(xml).not.to.match(/<zenbpm:Property\s/);
   }));
 
+
+  describe('*Modeler:* properties get JSON-validated', function() {
+
+    it('should show an inline error for a non-example-data *Modeler:* property with invalid JSON', inject(async function(elementRegistry, selection) {
+
+      // given — ServiceTask_withModelerInvalid has "zenbpmModeler:badJson"="not json {"
+      // ("badJson" is NOT in the EXAMPLE_DATA_PROPERTIES list, so it stays in
+      // the Extension properties section.)
+      const serviceTask = elementRegistry.get('ServiceTask_withModelerInvalid');
+      await act(() => selection.select(serviceTask));
+
+      // then
+      const error = domQuery('.bio-properties-panel-error', getGroup());
+      expect(error, 'error for invalid JSON').to.exist;
+      expect(error.textContent || '').to.match(/JSON/i);
+    }));
+
+
+    it('should NOT validate non-*Modeler:* properties as JSON (single-line input still works)', inject(async function(elementRegistry, selection) {
+
+      // given — ServiceTask_with has "name"=Honza, "role"=admin
+      const serviceTask = elementRegistry.get('ServiceTask_with');
+      await act(() => selection.select(serviceTask));
+
+      // then — both value fields stay as plain <input> elements
+      const inputs = domQueryAll('input[name*="-zenbpm-extensionProperty-"][name*="-value"]', container);
+      expect(inputs.length).to.equal(2);
+      // ...and no JSON error is shown
+      const error = domQuery('.bio-properties-panel-error', getGroup());
+      expect(error, 'no error for non-modeler properties').not.to.exist;
+    }));
+  });
+
+
+  describe('Example data (dedicated section for known *Modeler:* properties)', function() {
+
+    const EXAMPLE_DATA_GROUP_SELECTOR = '[data-group-id="group-zenbpm-exampleData"]';
+
+    function getExampleDataGroup() {
+      return domQuery(EXAMPLE_DATA_GROUP_SELECTOR, container);
+    }
+
+    function exampleDataValueInput() {
+      return domQuery('textarea[name*="zenbpm-exampleData-"]', container);
+    }
+
+
+    it('should render the "Example data" group', inject(async function(elementRegistry, selection) {
+
+      // given
+      const serviceTask = elementRegistry.get('ServiceTask_withModeler');
+      await act(() => selection.select(serviceTask));
+
+      // then
+      const group = getExampleDataGroup();
+      expect(group, 'Example data group').to.exist;
+      expect(group.getAttribute('data-group-id')).to.equal('group-zenbpm-exampleData');
+    }));
+
+
+    it('should render the "Example output" entry as a <textarea> with the model value', inject(async function(elementRegistry, selection) {
+
+      // given — ServiceTask_withModeler has "zenbpmModeler:exampleOutputJson"=`{"abc":123}`
+      const serviceTask = elementRegistry.get('ServiceTask_withModeler');
+      await act(() => selection.select(serviceTask));
+
+      // then
+      const textarea = exampleDataValueInput();
+      expect(textarea, 'textarea for Example output').to.exist;
+      expect(textarea.value).to.include('"abc":123');
+    }));
+
+
+    it('should not show an error for a valid JSON value', inject(async function(elementRegistry, selection) {
+
+      // given
+      const serviceTask = elementRegistry.get('ServiceTask_withModeler');
+      await act(() => selection.select(serviceTask));
+
+      // then
+      const error = domQuery('.bio-properties-panel-error', getExampleDataGroup());
+      expect(error, 'no error for valid JSON').not.to.exist;
+    }));
+
+
+    it('should show an inline error when the value is edited to invalid JSON', inject(async function(elementRegistry, selection) {
+
+      // given
+      const serviceTask = elementRegistry.get('ServiceTask_withModeler');
+      await act(() => selection.select(serviceTask));
+
+      // when
+      const textarea = exampleDataValueInput();
+      await act(() => fireEvent.input(textarea, { target: { value: 'not json {' } }));
+
+      // then
+      const error = domQuery('.bio-properties-panel-error', getExampleDataGroup());
+      expect(error, 'error after editing to invalid JSON').to.exist;
+      expect(error.textContent || '').to.match(/JSON/i);
+    }));
+
+
+    it('should update the underlying moddle property when the value is edited', inject(async function(elementRegistry, selection) {
+
+      // given
+      const serviceTask = elementRegistry.get('ServiceTask_withModeler');
+      await act(() => selection.select(serviceTask));
+
+      // when
+      const textarea = exampleDataValueInput();
+      await act(() => fireEvent.input(textarea, { target: { value: '{"xyz":456}' } }));
+
+      // then
+      const props = getPropertiesList(serviceTask);
+      const prop = props.find((p: any) => p.get('name') === 'zenbpmModeler:exampleOutputJson');
+      expect(prop, 'moddle property exists').to.exist;
+      expect(prop.get('value')).to.equal('{"xyz":456}');
+    }));
+
+
+    it('should remove the underlying moddle property when the value is cleared', inject(async function(elementRegistry, selection) {
+
+      // given
+      const serviceTask = elementRegistry.get('ServiceTask_withModeler');
+      await act(() => selection.select(serviceTask));
+      const propsBefore = getPropertiesList(serviceTask);
+      expect(
+        propsBefore.find((p: any) => p.get('name') === 'zenbpmModeler:exampleOutputJson'),
+        'fixture sanity: moddle property exists before clear',
+      ).to.exist;
+
+      // when
+      const textarea = exampleDataValueInput();
+      await act(() => fireEvent.input(textarea, { target: { value: '' } }));
+
+      // then
+      const propsAfter = getPropertiesList(serviceTask);
+      expect(
+        propsAfter.find((p: any) => p.get('name') === 'zenbpmModeler:exampleOutputJson'),
+        'moddle property removed after clear',
+      ).not.to.exist;
+    }));
+
+
+    it('should hide example-data properties from the Extension properties section', inject(async function(elementRegistry, selection) {
+
+      // given — ServiceTask_withModeler has only "zenbpmModeler:exampleOutputJson"
+      // which is an example-data property and must NOT appear in the generic
+      // Extension properties list.
+      const serviceTask = elementRegistry.get('ServiceTask_withModeler');
+      await act(() => selection.select(serviceTask));
+
+      // then — the Extension properties section is rendered but with 0 items
+      expect(getGroup(), 'Extension properties group still rendered').to.exist;
+      expect(domQueryAll('.bio-properties-panel-collapsible-entry', getGroup()).length)
+        .to.equal(0);
+    }));
+  });
+
 });

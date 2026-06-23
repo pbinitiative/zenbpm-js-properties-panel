@@ -33,6 +33,22 @@
         <zenbpm:taskDefinition type="worker" retries="3" />
       </bpmn:extensionElements>
     </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="ServiceTask_withModeler" name="With modeler property">
+      <bpmn:extensionElements>
+        <zenbpm:properties>
+          <zenbpm:property name="zenbpmModeler:exampleOutputJson" value="{&#34;abc&#34;:123}" />
+        </zenbpm:properties>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="ServiceTask_withModelerInvalid" name="With invalid modeler JSON">
+      <bpmn:extensionElements>
+        <zenbpm:properties>
+          <zenbpm:property name="zenbpmModeler:badJson" value="not json {" />
+        </zenbpm:properties>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
   </bpmn:process>
 
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
@@ -48,6 +64,12 @@
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="ServiceTask_withTaskDef_di" bpmnElement="ServiceTask_withTaskDef">
         <dc:Bounds x="520" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_withModeler_di" bpmnElement="ServiceTask_withModeler">
+        <dc:Bounds x="660" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_withModelerInvalid_di" bpmnElement="ServiceTask_withModelerInvalid">
+        <dc:Bounds x="800" y="100" width="100" height="80" />
       </bpmndi:BPMNShape>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

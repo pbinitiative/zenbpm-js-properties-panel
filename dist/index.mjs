@@ -1,7 +1,14 @@
-import { isTextFieldEntryEdited, TextFieldEntry, isFeelEntryEdited, FeelEntry, isSelectEntryEdited, SelectEntry, isToggleSwitchEntryEdited, ToggleSwitchEntry, ListGroup, Group } from '@bpmn-io/properties-panel';
+import { isTextFieldEntryEdited, TextFieldEntry, isFeelEntryEdited, FeelEntry, isSelectEntryEdited, SelectEntry, isToggleSwitchEntryEdited, ToggleSwitchEntry, ListGroup, isTextAreaEntryEdited, TextAreaEntry, Group } from '@bpmn-io/properties-panel';
 import { createElement } from '@bpmn-io/properties-panel/preact';
 import { useService } from 'bpmn-js-properties-panel';
 
+/**
+ * Reserved target name used by the form designer. The matching
+ * `zenbpm:Input` is auto-created / auto-updated by `setupFormSaveHandler`
+ * and is system-managed — the modeller should not see it in the
+ * user-editable input mapping list.
+ */
+const ZEN_FORM = 'ZEN_FORM';
 function ZenFormProps(element) {
     if (element.type !== 'bpmn:UserTask')
         return [];
@@ -21,7 +28,7 @@ function getZenFormValue(element) {
     const ioMapping = extensionElements.values?.find((e) => e.$type === 'zenbpm:IoMapping');
     if (!ioMapping)
         return '';
-    const input = (ioMapping.inputParameters || []).find((p) => p.target === 'ZEN_FORM');
+    const input = (ioMapping.inputParameters || []).find((p) => p.target === ZEN_FORM);
     if (!input?.source)
         return '';
     const src = input.source;
@@ -159,7 +166,7 @@ function setupFormSaveHandler(injector) {
             return;
         const { moddleElement, properties, element } = context;
         if (moddleElement?.$type !== 'zenbpm:Input' ||
-            moddleElement.target !== 'ZEN_FORM' ||
+            moddleElement.target !== ZEN_FORM ||
             properties?.source === undefined) {
             return;
         }
@@ -827,27 +834,38 @@ const OUTPUT_ONLY_ELEMENTS = new Set([
     'bpmn:StartEvent',
     'bpmn:BoundaryEvent',
 ]);
+/**
+ * Input mapping targets that are system-managed and must not appear in the
+ * modeller-facing input mapping list. The underlying `zenbpm:Input` is left
+ * untouched in the model — it is only hidden from the rendered UI.
+ */
+const HIDDEN_INPUT_TARGETS = new Set([ZEN_FORM]);
 function supportsInputMapping(element) {
     return IO_ELEMENTS.has(element.type);
 }
 function supportsOutputMapping(element) {
     return IO_ELEMENTS.has(element.type) || OUTPUT_ONLY_ELEMENTS.has(element.type);
 }
-function makeParamEntry(id, labelKey, prop, element, param) {
-    return function ParamEntry(_props) {
-        const commandStack = useService('commandStack');
-        const translate = useService('translate');
-        const debounce = useService('debounceInput');
-        const getValue = () => prop === 'source' ? getFeelValue(param[prop]) : (param[prop] || '');
-        const setValue = (value) => commandStack.execute('element.updateModdleProperties', {
-            element,
-            moddleElement: param,
-            properties: { [prop]: value },
-        });
-        return prop === 'source'
-            ? FeelEntry({ element, id, label: translate(labelKey), feel: 'required', getValue, setValue, debounce })
-            : TextFieldEntry({ element, id, label: translate(labelKey), getValue, setValue, debounce });
-    };
+// `ParamEntry` is defined at module scope so its function reference never
+// changes. See the matching comment in `ExtensionPropertiesProps.ts` — the
+// previous `makeParamEntry` factory returned a new function on every render,
+// which made Preact remount the input ~600ms after the user started typing
+// and dropped keyboard focus.
+function ParamEntry(props) {
+    const { element: bpmnElement, param, prop, id, labelKey } = props;
+    const commandStack = useService('commandStack');
+    const translate = useService('translate');
+    const debounce = useService('debounceInput');
+    const getValue = () => prop === 'source' ? getFeelValue(param[prop]) : (param[prop] || '');
+    const setValue = (value) => commandStack.execute('element.updateModdleProperties', {
+        element: bpmnElement,
+        moddleElement: param,
+        properties: { [prop]: value },
+    });
+    const label = translate(labelKey);
+    return prop === 'source'
+        ? FeelEntry({ element: bpmnElement, id, label, feel: 'required', getValue, setValue, debounce })
+        : TextFieldEntry({ element: bpmnElement, id, label, getValue, setValue, debounce });
 }
 function addParam(element, bo, bpmnFactory, commandStack, paramType, listProp) {
     const commands = [];
@@ -869,11 +887,33 @@ function addParam(element, bo, bpmnFactory, commandStack, paramType, listProp) {
     commandStack.execute('properties-panel.multi-command-executor', commands);
 }
 function removeParam(element, ioMapping, param, listProp, commandStack) {
-    commandStack.execute('element.updateModdleProperties', {
-        element,
-        moddleElement: ioMapping,
-        properties: { [listProp]: (ioMapping[listProp] || []).filter((p) => p !== param) },
-    });
+    const remaining = (ioMapping[listProp] || []).filter((p) => p !== param);
+    const otherProp = listProp === 'inputParameters' ? 'outputParameters' : 'inputParameters';
+    const otherRemaining = ioMapping[otherProp] || [];
+    if (remaining.length > 0 || otherRemaining.length > 0) {
+        commandStack.execute('element.updateModdleProperties', {
+            element,
+            moddleElement: ioMapping,
+            properties: { [listProp]: remaining },
+        });
+        return;
+    }
+    const extensionElements = element.businessObject.extensionElements;
+    const newValues = (extensionElements.values || []).filter((e) => e !== ioMapping);
+    if (newValues.length === 0) {
+        commandStack.execute('element.updateModdleProperties', {
+            element,
+            moddleElement: element.businessObject,
+            properties: { extensionElements: undefined },
+        });
+    }
+    else {
+        commandStack.execute('element.updateModdleProperties', {
+            element,
+            moddleElement: extensionElements,
+            properties: { values: newValues },
+        });
+    }
 }
 function createInputMappingGroup(element, injector) {
     if (!supportsInputMapping(element))
@@ -885,19 +925,44 @@ function createInputMappingGroup(element, injector) {
     const bo = element.businessObject;
     const ioMapping = getExtensionElement(bo, 'zenbpm:IoMapping');
     const inputs = ioMapping?.inputParameters || [];
-    const items = inputs.map((input, index) => {
+    // Hide system-managed targets (e.g. ZEN_FORM) from the modeller-facing
+    // list. The underlying `zenbpm:Input` is left in the model so form data
+    // round-trips; only the rendered row is suppressed. We keep the original
+    // underlying index in the item id so the `add` callback's `inputs.length`
+    // computation stays consistent with the position new params get appended at.
+    const items = inputs
+        .map((input, index) => {
+        if (HIDDEN_INPUT_TARGETS.has(input.target)) {
+            return null;
+        }
         const id = `${element.id}-zenbpm-input-${index}`;
         return {
             id,
             label: input.target || translate('<empty>'),
             entries: [
-                { id: `${id}-source`, component: makeParamEntry(`${id}-source`, 'Source expression', 'source', element, input), isEdited: isFeelEntryEdited },
-                { id: `${id}-target`, component: makeParamEntry(`${id}-target`, 'Target variable', 'target', element, input), isEdited: isTextFieldEntryEdited },
+                {
+                    id: `${id}-source`,
+                    component: ParamEntry,
+                    isEdited: isFeelEntryEdited,
+                    // extras consumed by `ParamEntry` (spread into props by CollapsibleEntry):
+                    param: input,
+                    prop: 'source',
+                    labelKey: 'Source expression',
+                },
+                {
+                    id: `${id}-target`,
+                    component: ParamEntry,
+                    isEdited: isTextFieldEntryEdited,
+                    param: input,
+                    prop: 'target',
+                    labelKey: 'Target variable',
+                },
             ],
             autoFocusEntry: `${id}-target`,
             remove: () => removeParam(element, ioMapping, input, 'inputParameters', commandStack),
         };
-    });
+    })
+        .filter((item) => item !== null);
     return {
         id: 'zenbpm-ioMapping-inputs',
         label: translate('Input mapping'),
@@ -926,8 +991,22 @@ function createOutputMappingGroup(element, injector) {
             id,
             label: output.target || translate('<empty>'),
             entries: [
-                { id: `${id}-source`, component: makeParamEntry(`${id}-source`, 'Source expression', 'source', element, output), isEdited: isFeelEntryEdited },
-                { id: `${id}-target`, component: makeParamEntry(`${id}-target`, 'Target variable', 'target', element, output), isEdited: isTextFieldEntryEdited },
+                {
+                    id: `${id}-source`,
+                    component: ParamEntry,
+                    isEdited: isFeelEntryEdited,
+                    param: output,
+                    prop: 'source',
+                    labelKey: 'Source expression',
+                },
+                {
+                    id: `${id}-target`,
+                    component: ParamEntry,
+                    isEdited: isTextFieldEntryEdited,
+                    param: output,
+                    prop: 'target',
+                    labelKey: 'Target variable',
+                },
             ],
             autoFocusEntry: `${id}-target`,
             remove: () => removeParam(element, ioMapping, output, 'outputParameters', commandStack),
@@ -1074,6 +1153,210 @@ function CorrelationKeyProps(element) {
     ];
 }
 
+/**
+ * Property-name convention for Camunda/ZenBPM Modeler UI metadata.
+ *
+ * Camunda Modeler stores UI-only metadata on BPMN elements via
+ * `zeebe:Property` extension elements whose `name` carries a `camundaModeler:`
+ * prefix (e.g. `name="camundaModeler:exampleOutputJson"`). The value of such
+ * a property is conventionally a JSON blob. We normalise the prefix to
+ * `zenbpmModeler:` on import (see `NormalizeNamespace.normalizeZeebeXml`) and
+ * use this matcher to decide which extension properties should be edited
+ * with JSON validation in the properties panel.
+ *
+ * The match is intentionally permissive on the vendor prefix so that other
+ * `*Modeler:`-flavoured names (e.g. future `bpmnIoModeler:`) can opt in
+ * without changing this code.
+ */
+const MODELER_PROPERTY_NAME_PATTERN = /^[a-zA-Z]+Modeler:/;
+/**
+ * Returns `true` if `name` follows the `<vendor>Modeler:` convention for
+ * Modeler-side metadata, e.g. `camundaModeler:foo`, `zenbpmModeler:foo`.
+ */
+function isModelerPropertyName(name) {
+    if (!name)
+        return false;
+    return MODELER_PROPERTY_NAME_PATTERN.test(name);
+}
+/**
+ * Validate a string as JSON. Suitable for use as a `validate` prop on a
+ * bpmn-io `TextFieldEntry` / `TextAreaEntry` — returns `null` when the value
+ * is acceptable (empty *or* parseable JSON) and a human-readable error
+ * string otherwise.
+ */
+function validateJson(value) {
+    if (value == null || value.trim() === '') {
+        return null;
+    }
+    try {
+        JSON.parse(value);
+        return null;
+    }
+    catch (err) {
+        return `Value must be valid JSON (${err && err.message ? err.message : 'parse error'})`;
+    }
+}
+
+const TYPE_PROPERTIES$1 = 'zenbpm:Properties';
+const TYPE_PROPERTY$1 = 'zenbpm:Property';
+const MODELER_PREFIX = 'zenbpmModeler:';
+/**
+ * Known example-data properties lifted out of the generic
+ * "Extension properties" list and exposed as dedicated, JSON-validated
+ * entries in the "Example data" group.
+ *
+ * Each entry is always rendered (even if the moddle property is absent) so
+ * the modeller can both inspect existing data and add new data by typing
+ * a value. Clearing the field removes the moddle property.
+ */
+const EXAMPLE_DATA_PROPERTIES = [
+    { propertyName: 'exampleOutputJson', label: 'Example output' },
+];
+/**
+ * Returns `true` if `name` (a moddle `zenbpm:Property.name` value) is a
+ * known example-data property. Used by `ExtensionPropertiesGroup` to hide
+ * these properties from the generic Extension properties list.
+ */
+function isExampleDataPropertyName(name) {
+    if (!name)
+        return false;
+    const colonIdx = name.indexOf(':');
+    if (colonIdx < 0)
+        return false;
+    const localName = name.slice(colonIdx + 1);
+    return EXAMPLE_DATA_PROPERTIES.some((p) => p.propertyName === localName);
+}
+// ─── moddle accessors / mutators ────────────────────────────────────────────
+function findModelerProperty(element, propertyName) {
+    const fullName = MODELER_PREFIX + propertyName;
+    const container = getExtensionElement(element.businessObject, TYPE_PROPERTIES$1);
+    if (!container)
+        return null;
+    return (container.get('properties') || []).find((p) => p.get('name') === fullName) || null;
+}
+function upsertModelerProperty(element, bpmnFactory, commandStack, propertyName, value) {
+    const bo = element.businessObject;
+    const commands = [];
+    // (1) ensure bpmn:ExtensionElements exists
+    let extensionElements = bo.extensionElements;
+    if (!extensionElements) {
+        extensionElements = bpmnFactory.create('bpmn:ExtensionElements', { values: [] });
+        extensionElements.$parent = bo;
+        commands.push({
+            cmd: 'element.updateModdleProperties',
+            context: { element, moddleElement: bo, properties: { extensionElements } },
+        });
+    }
+    // (2) ensure zenbpm:Properties container exists
+    let container = (extensionElements.values || []).find((e) => e.$instanceOf(TYPE_PROPERTIES$1));
+    if (!container) {
+        container = bpmnFactory.create(TYPE_PROPERTIES$1, { properties: [] });
+        container.$parent = extensionElements;
+        commands.push({
+            cmd: 'element.updateModdleProperties',
+            context: {
+                element,
+                moddleElement: extensionElements,
+                properties: { values: [...(extensionElements.values || []), container] },
+            },
+        });
+    }
+    // (3) update existing or create new
+    const fullName = MODELER_PREFIX + propertyName;
+    const existing = (container.get('properties') || []).find((p) => p.get('name') === fullName);
+    if (existing) {
+        commands.push({
+            cmd: 'element.updateModdleProperties',
+            context: { element, moddleElement: existing, properties: { value } },
+        });
+    }
+    else {
+        const created = bpmnFactory.create(TYPE_PROPERTY$1, { name: fullName, value });
+        created.$parent = container;
+        commands.push({
+            cmd: 'element.updateModdleProperties',
+            context: {
+                element,
+                moddleElement: container,
+                properties: { properties: [...(container.get('properties') || []), created] },
+            },
+        });
+    }
+    commandStack.execute('properties-panel.multi-command-executor', commands);
+}
+function clearModelerProperty(element, commandStack, propertyName) {
+    const bo = element.businessObject;
+    const extensionElements = bo.extensionElements;
+    if (!extensionElements)
+        return;
+    const container = (extensionElements.values || []).find((e) => e.$instanceOf(TYPE_PROPERTIES$1));
+    if (!container)
+        return;
+    const fullName = MODELER_PREFIX + propertyName;
+    const existing = (container.get('properties') || []).find((p) => p.get('name') === fullName);
+    if (!existing)
+        return;
+    const remaining = (container.get('properties') || []).filter((p) => p !== existing);
+    if (remaining.length) {
+        commandStack.execute('element.updateModdleProperties', {
+            element,
+            moddleElement: container,
+            properties: { properties: remaining },
+        });
+        return;
+    }
+    // last one — drop the whole `zenbpm:Properties` container
+    commandStack.execute('element.updateModdleProperties', {
+        element,
+        moddleElement: extensionElements,
+        properties: {
+            values: (extensionElements.values || []).filter((e) => !e.$instanceOf(TYPE_PROPERTIES$1)),
+        },
+    });
+}
+// ─── per-row component (stable identity across re-renders) ─────────────────
+function ExampleDataEntry(props) {
+    const { element, propertyName, id } = props;
+    const commandStack = useService('commandStack');
+    const bpmnFactory = useService('bpmnFactory');
+    const translate = useService('translate');
+    const debounce = useService('debounceInput');
+    const moddleProperty = findModelerProperty(element, propertyName);
+    const currentLabel = (EXAMPLE_DATA_PROPERTIES.find((p) => p.propertyName === propertyName) || {}).label || propertyName;
+    const getValue = () => (moddleProperty ? (moddleProperty.get('value') || '') : '');
+    const setValue = (value) => {
+        if (value && value.trim() !== '') {
+            upsertModelerProperty(element, bpmnFactory, commandStack, propertyName, value);
+        }
+        else if (moddleProperty) {
+            clearModelerProperty(element, commandStack, propertyName);
+        }
+    };
+    return TextAreaEntry({
+        element,
+        id,
+        label: translate(currentLabel),
+        getValue,
+        setValue,
+        debounce,
+        isEdited: isTextAreaEntryEdited,
+        validate: validateJson,
+    });
+}
+// ─── entry descriptor factory (consumed by the provider's Group) ───────────
+function ExampleDataProps(element) {
+    if (!element || !element.businessObject)
+        return [];
+    return EXAMPLE_DATA_PROPERTIES.map(({ propertyName }) => ({
+        id: `zenbpm-exampleData-${propertyName}`,
+        component: ExampleDataEntry,
+        isEdited: isTextAreaEntryEdited,
+        // extras consumed by `ExampleDataEntry` (spread into props by CollapsibleEntry):
+        element,
+        propertyName,
+    }));
+}
+
 const TYPE_PROPERTIES = 'zenbpm:Properties';
 const TYPE_PROPERTY = 'zenbpm:Property';
 // ─── accessors ───────────────────────────────────────────────────────────────
@@ -1084,27 +1367,54 @@ function getPropertiesList(element) {
     const properties = getProperties(element);
     return properties ? (properties.get('properties') || []) : [];
 }
-// ─── item entry factory (one component per item) ────────────────────────────
-function makePropertyEntry(id, element, property, field) {
-    return function PropertyEntry(_props) {
-        const commandStack = useService('commandStack');
-        const translate = useService('translate');
-        const debounce = useService('debounceInput');
-        const getValue = () => (property.get(field) || '');
-        const setValue = (value) => commandStack.execute('element.updateModdleProperties', {
-            element,
-            moddleElement: property,
-            properties: { [field]: value },
-        });
-        return TextFieldEntry({
+// ─── per-row component (stable identity across re-renders) ──────────────────
+//
+// `PropertyEntry` is defined at module scope so its function reference never
+// changes. The bpmn-io properties-panel re-renders the whole group on every
+// `elements.changed` event (fired by the debounced commit ~600ms after the
+// user stops typing), and Preact's keyed reconciler unmounts/remounts a row
+// whose `type` changed — which previously made the input lose focus while
+// typing. An earlier version of this code used a `makePropertyEntry` factory
+// that returned a brand-new function on every render, causing exactly that
+// remount. Routing the moddle element and the edited field through the
+// entry descriptor (which `CollapsibleEntry` spreads into the component's
+// props) keeps the component identity stable and preserves focus.
+function PropertyEntry(props) {
+    const { element: bpmnElement, property, field, id } = props;
+    const commandStack = useService('commandStack');
+    const translate = useService('translate');
+    const debounce = useService('debounceInput');
+    const getValue = () => (property.get(field) || '');
+    const setValue = (value) => commandStack.execute('element.updateModdleProperties', {
+        element: bpmnElement,
+        moddleElement: property,
+        properties: { [field]: value },
+    });
+    const label = translate(field === 'name' ? 'Name' : 'Value');
+    // For the value of a `*Modeler:*` property we switch to a multi-line
+    // textarea and JSON-validate the input. The name field stays a single-line
+    // text input — names are short identifiers, not JSON blobs.
+    if (field === 'value' && isModelerPropertyName(property.get('name'))) {
+        return TextAreaEntry({
             element: property,
             id,
-            label: translate(field === 'name' ? 'Name' : 'Value'),
+            label,
             getValue,
             setValue,
             debounce,
+            isEdited: isTextAreaEntryEdited,
+            validate: validateJson,
         });
-    };
+    }
+    return TextFieldEntry({
+        element: property,
+        id,
+        label,
+        getValue,
+        setValue,
+        debounce,
+        isEdited: isTextFieldEntryEdited,
+    });
 }
 // ─── add / remove ────────────────────────────────────────────────────────────
 function addProperty(element, bpmnFactory, commandStack, eventBus, currentCount) {
@@ -1180,14 +1490,31 @@ function ExtensionPropertiesGroup(element, injector) {
     const translate = injector.get('translate');
     const eventBus = injector.get('eventBus');
     const list = getPropertiesList(element);
-    const items = list.map((property, index) => {
+    // Example-data properties (e.g. `zenbpmModeler:exampleOutputJson`) are
+    // surfaced in the dedicated "Example data" group instead, so they must
+    // not appear here.
+    const visibleList = list.filter((p) => !isExampleDataPropertyName(p.get('name')));
+    const items = visibleList.map((property, index) => {
         const id = `${element.id}-zenbpm-extensionProperty-${index}`;
         return {
             id,
             label: property.get('name') || translate('<empty>'),
             entries: [
-                { id: `${id}-name`, component: makePropertyEntry(`${id}-name`, element, property, 'name'), isEdited: isTextFieldEntryEdited },
-                { id: `${id}-value`, component: makePropertyEntry(`${id}-value`, element, property, 'value'), isEdited: isTextFieldEntryEdited },
+                {
+                    id: `${id}-name`,
+                    component: PropertyEntry,
+                    isEdited: isTextFieldEntryEdited,
+                    // extras consumed by `PropertyEntry` (spread into props by CollapsibleEntry):
+                    property,
+                    field: 'name',
+                },
+                {
+                    id: `${id}-value`,
+                    component: PropertyEntry,
+                    isEdited: isTextFieldEntryEdited,
+                    property,
+                    field: 'value',
+                },
             ],
             autoFocusEntry: `${id}-name`,
             remove: () => removeProperty(element, property, commandStack),
@@ -1346,6 +1673,27 @@ class ZenBpmPropertiesProvider {
                     });
                 }
             }
+            // ── Extension properties (zenbpm:Properties / zenbpm:Property) ──────
+            // Generic key/value list available on any element. Mirrors Zeebe's
+            // zeebe:Properties/zeebe:Property; in ZenBPM it is used to attach
+            // arbitrary metadata (e.g. the ZEN_FORM JSON for a UserTask) and is
+            // preserved on round-trip even though the engine does not read the
+            // values at runtime.
+            groups.push(ExtensionPropertiesGroup(element, this._injector));
+            // ── Example data (dedicated UI for known *Modeler:* properties) ────
+            // The Camunda/ZenBPM Modeler stores example input/output data on
+            // tasks as `camundaModeler:exampleOutputJson` etc. (renamed to
+            // `zenbpmModeler:*` on import). These are surfaced here as typed
+            // JSON-validated fields instead of the generic key/value list.
+            const exampleDataEntries = ExampleDataProps(element);
+            if (exampleDataEntries.length) {
+                groups.push({
+                    id: 'zenbpm-exampleData',
+                    label: translate('Example data'),
+                    entries: exampleDataEntries,
+                    component: Group,
+                });
+            }
             // ── Zen Form ─────────────────────────────────────────────────────────
             if (element.type === 'bpmn:UserTask') {
                 groups.push({
@@ -1355,13 +1703,6 @@ class ZenBpmPropertiesProvider {
                     component: Group,
                 });
             }
-            // ── Extension properties (zenbpm:Properties / zenbpm:Property) ──────
-            // Generic key/value list available on any element. Mirrors Zeebe's
-            // zeebe:Properties/zeebe:Property; in ZenBPM it is used to attach
-            // arbitrary metadata (e.g. the ZEN_FORM JSON for a UserTask) and is
-            // preserved on round-trip even though the engine does not read the
-            // values at runtime.
-            groups.push(ExtensionPropertiesGroup(element, this._injector));
             return groups;
         };
     }
@@ -1374,12 +1715,51 @@ var index = {
 
 const ZEEBE_NAMESPACE_URI = 'xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"';
 const ZENBPM_NAMESPACE_URI = 'xmlns:zenbpm="http://zenbpm.pbinitiative.org/1.0"';
+/**
+ * Camunda Modeler stores UI-only metadata on BPMN elements via `zeebe:Property`
+ * extension elements whose `name` carries a `camundaModeler:` prefix (e.g.
+ * `name="camundaModeler:exampleOutputJson"`). On import we rename that prefix
+ * to our own `zenbpmModeler:` so the moddle model is self-consistent; on
+ * export back to Camunda we reverse the rename.
+ */
+const CAMUNDA_MODELER_PREFIX = 'name="camundaModeler:';
+const ZENBPM_MODELER_PREFIX = 'name="zenbpmModeler:';
+/**
+ * Rewrite Camunda/Zeebe-flavoured XML into the ZenBPM flavour.
+ *
+ *   <zeebe:property name="camundaModeler:foo" value="{}"/>
+ *     →  <zenbpm:property name="zenbpmModeler:foo" value="{}"/>
+ *
+ * Intended to be called by the host application **before** `modeler.importXML()`.
+ * It is a text-level transform, so it is best-effort: the `name` rewrite
+ * matches anywhere a literal `name="camundaModeler:` appears. That prefix is
+ * specific enough not to collide with any other attribute in valid BPMN/ZenBPM
+ * XML.
+ */
 function normalizeZeebeXml(xml) {
     return xml
         .replace(new RegExp(ZEEBE_NAMESPACE_URI, 'g'), ZENBPM_NAMESPACE_URI)
         .replace(new RegExp("<zeebe:", 'g'), "<zenbpm:")
-        .replace(new RegExp("</zeebe:", 'g'), "</zenbpm:");
+        .replace(new RegExp("</zeebe:", 'g'), "</zenbpm:")
+        .replace(new RegExp(CAMUNDA_MODELER_PREFIX, 'g'), ZENBPM_MODELER_PREFIX);
+}
+/**
+ * Inverse of {@link normalizeZeebeXml}. Rewrites ZenBPM-flavoured XML into a
+ * Camunda/Zeebe-flavoured XML that Camunda Modeler / Zeebe tooling can read.
+ *
+ *   <zenbpm:property name="zenbpmModeler:foo" value="{}"/>
+ *     →  <zeebe:property name="camundaModeler:foo" value="{}"/>
+ *
+ * Intended to be called by the host application **after** `modeler.saveXML()`
+ * to produce a Camunda-compatible export.
+ */
+function denormalizeToZeebeXml(xml) {
+    return xml
+        .replace(new RegExp(ZENBPM_NAMESPACE_URI, 'g'), ZEEBE_NAMESPACE_URI)
+        .replace(new RegExp("<zenbpm:", 'g'), "<zeebe:")
+        .replace(new RegExp("</zenbpm:", 'g'), "</zeebe:")
+        .replace(new RegExp(ZENBPM_MODELER_PREFIX, 'g'), CAMUNDA_MODELER_PREFIX);
 }
 
-export { index as ZenBpmPropertiesProviderModule, normalizeZeebeXml };
+export { index as ZenBpmPropertiesProviderModule, denormalizeToZeebeXml, normalizeZeebeXml };
 //# sourceMappingURL=index.mjs.map

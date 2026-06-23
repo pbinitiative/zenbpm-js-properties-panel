@@ -204,4 +204,34 @@ describe('provider/zenbpm - IoMapping', function() {
     expect(block).to.match(/<zenbpm:input\s/);
   }));
 
+
+  it('hides the ZEN_FORM input from the input mapping list (system-managed)', inject(async function(elementRegistry, selection) {
+
+    // given
+    const userTask = elementRegistry.get('UserTask_withZenForm');
+    expect(inputsOf(userTask).length, 'fixture sanity: 2 inputs in model').to.equal(2);
+    const zenFormInput = inputsOf(userTask).find((p: any) => p.target === 'ZEN_FORM');
+    expect(zenFormInput, 'fixture sanity: ZEN_FORM input exists in model').to.exist;
+
+    // when
+    await act(() => selection.select(userTask));
+
+    // then — only the user-authored input is rendered
+    const group = getInputGroup();
+    expect(group, 'input group').to.exist;
+    const items = domQueryAll('.bio-properties-panel-collapsible-entry', group);
+    expect(items.length).to.equal(1);
+
+    // ...and its label is the user-authored target, not ZEN_FORM
+    const labels = Array.from(items).map((el) => el.textContent || '');
+    expect(labels.some((t) => t.includes('ZEN_FORM')), 'ZEN_FORM label should be hidden').to.be.false;
+    expect(labels.some((t) => t.includes('user')), 'user-authored input should be visible').to.be.true;
+
+    // ...and the underlying ZEN_FORM data is preserved
+    expect(inputsOf(userTask).length, 'ZEN_FORM input is still in the model').to.equal(2);
+    const stillThere = inputsOf(userTask).find((p: any) => p.target === 'ZEN_FORM');
+    expect(stillThere, 'ZEN_FORM input still in the model').to.exist;
+    expect(stillThere.source, 'ZEN_FORM source preserved').to.equal('="{}"');
+  }));
+
 });
