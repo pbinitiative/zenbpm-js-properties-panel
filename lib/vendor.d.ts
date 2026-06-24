@@ -34,12 +34,14 @@ declare module '@bpmn-io/properties-panel' {
 
   // Form-entry components
   export const TextFieldEntry: EntryComponent;
+  export const TextAreaEntry: EntryComponent;
   export const ToggleSwitchEntry: EntryComponent;
   export const FeelEntry: EntryComponent;
   export const SelectEntry: EntryComponent;
 
   // Edit-state helpers
   export const isTextFieldEntryEdited: IsEditedFn;
+  export const isTextAreaEntryEdited: IsEditedFn;
   export const isToggleSwitchEntryEdited: IsEditedFn;
   export const isFeelEntryEdited: IsEditedFn;
   export const isSelectEntryEdited: IsEditedFn;

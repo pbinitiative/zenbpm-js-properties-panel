@@ -1,6 +1,14 @@
 import { createElement } from '@bpmn-io/properties-panel/preact';
 import { useService } from 'bpmn-js-properties-panel';
 
+/**
+ * Reserved target name used by the form designer. The matching
+ * `zenbpm:Input` is auto-created / auto-updated by `setupFormSaveHandler`
+ * and is system-managed — the modeller should not see it in the
+ * user-editable input mapping list.
+ */
+export const ZEN_FORM = 'ZEN_FORM';
+
 export function ZenFormProps(element: any) {
   if (element.type !== 'bpmn:UserTask') return [];
 
@@ -24,7 +32,7 @@ function getZenFormValue(element: any): string {
   if (!ioMapping) return '';
 
   const input = (ioMapping.inputParameters || []).find(
-    (p: any) => p.target === 'ZEN_FORM',
+    (p: any) => p.target === ZEN_FORM,
   );
   if (!input?.source) return '';
 
@@ -199,7 +207,7 @@ export function setupFormSaveHandler(injector: any): void {
 
       if (
         moddleElement?.$type !== 'zenbpm:Input' ||
-        moddleElement.target !== 'ZEN_FORM' ||
+        moddleElement.target !== ZEN_FORM ||
         properties?.source === undefined
       ) {
         return;

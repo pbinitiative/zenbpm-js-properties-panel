@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:zenbpm="http://zenbpm.pbinitiative.org/1.0"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_1"
+                  targetNamespace="http://bpmn.io/schema/bpmn">
+
+  <bpmn:process id="Process_1" isExecutable="false">
+    <bpmn:serviceTask id="ServiceTask_with" name="With two properties">
+      <bpmn:extensionElements>
+        <zenbpm:properties>
+          <zenbpm:property name="name" value="Honza" />
+          <zenbpm:property name="role" value="admin" />
+        </zenbpm:properties>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="ServiceTask_one" name="With one property">
+      <bpmn:extensionElements>
+        <zenbpm:properties>
+          <zenbpm:property name="key" value="value" />
+        </zenbpm:properties>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="ServiceTask_empty" name="No properties" />
+
+    <bpmn:serviceTask id="ServiceTask_withTaskDef" name="TaskDefinition + Properties">
+      <bpmn:extensionElements>
+        <zenbpm:taskDefinition type="worker" retries="3" />
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="ServiceTask_withModeler" name="With modeler property">
+      <bpmn:extensionElements>
+        <zenbpm:properties>
+          <zenbpm:property name="zenbpmModeler:exampleOutputJson" value="{&#34;abc&#34;:123}" />
+        </zenbpm:properties>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="ServiceTask_withModelerInvalid" name="With invalid modeler JSON">
+      <bpmn:extensionElements>
+        <zenbpm:properties>
+          <zenbpm:property name="zenbpmModeler:badJson" value="not json {" />
+        </zenbpm:properties>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="ServiceTask_with_di" bpmnElement="ServiceTask_with">
+        <dc:Bounds x="100" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_one_di" bpmnElement="ServiceTask_one">
+        <dc:Bounds x="240" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_empty_di" bpmnElement="ServiceTask_empty">
+        <dc:Bounds x="380" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_withTaskDef_di" bpmnElement="ServiceTask_withTaskDef">
+        <dc:Bounds x="520" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_withModeler_di" bpmnElement="ServiceTask_withModeler">
+        <dc:Bounds x="660" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_withModelerInvalid_di" bpmnElement="ServiceTask_withModelerInvalid">
+        <dc:Bounds x="800" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
