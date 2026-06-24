@@ -4,7 +4,7 @@ import {
 } from '@bpmn-io/properties-panel';
 import { useService } from 'bpmn-js-properties-panel';
 
-import { getExtensionElement } from '../../../util/ExtensionElementsUtil';
+import { getExtensionElement, removeExtensionElement } from '../../../util/ExtensionElementsUtil';
 import { validateJson } from '../../../util/ValidationUtil';
 
 const TYPE_PROPERTIES = 'zenbpm:Properties';
@@ -139,14 +139,10 @@ function clearModelerProperty(element: any, commandStack: any, propertyName: str
     return;
   }
 
-  // last one — drop the whole `zenbpm:Properties` container
-  commandStack.execute('element.updateModdleProperties', {
-    element,
-    moddleElement: extensionElements,
-    properties: {
-      values: (extensionElements.values || []).filter((e: any) => !e.$instanceOf(TYPE_PROPERTIES)),
-    },
-  });
+  // last one — drop the whole `zenbpm:Properties` container.
+  // `removeExtensionElement` also clears a now-empty <bpmn:ExtensionElements>
+  // container, which the previous inline filter would leave behind as dirty XML.
+  removeExtensionElement(element, bo, TYPE_PROPERTIES, commandStack);
 }
 
 // ─── per-row component (stable identity across re-renders) ─────────────────

@@ -75,11 +75,24 @@ export function removeExtensionElement(
   if (!extensionElements) return;
   const matching = (extensionElements.values || []).filter((e: any) => e.$instanceOf(type));
   if (!matching.length) return;
-  commandStack.execute('element.updateModdleProperties', {
-    element,
-    moddleElement: extensionElements,
-    properties: { values: (extensionElements.values || []).filter((e: any) => !e.$instanceOf(type)) },
-  });
+
+  const remainingValues = (extensionElements.values || []).filter((e: any) => !e.$instanceOf(type));
+  if (remainingValues.length === 0) {
+    // Removing the last value would leave an empty <bpmn:extensionElements>
+    // container (dirty XML). Drop the container from the parent instead —
+    // mirrors the handling in `removeParam` (IoMappingProps.ts).
+    commandStack.execute('element.updateModdleProperties', {
+      element,
+      moddleElement: bo,
+      properties: { extensionElements: undefined },
+    });
+  } else {
+    commandStack.execute('element.updateModdleProperties', {
+      element,
+      moddleElement: extensionElements,
+      properties: { values: remainingValues },
+    });
+  }
 }
 
 /**

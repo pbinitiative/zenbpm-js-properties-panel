@@ -172,6 +172,29 @@ describe('provider/zenbpm - ExtensionProperties', function() {
   }));
 
 
+  it('should drop the now-empty bpmn:ExtensionElements container when the last property is removed', inject(async function(elementRegistry, selection) {
+
+    // given — ServiceTask_one's extensionElements holds ONLY zenbpm:Properties,
+    // so removing the last property must also clean up the empty
+    // <bpmn:extensionElements> wrapper (otherwise it serializes as dirty XML).
+    const serviceTask = elementRegistry.get('ServiceTask_one');
+    const bo = serviceTask.businessObject;
+
+    // assume
+    expect(bo.extensionElements, 'extensionElements exists before').to.exist;
+    expect((bo.extensionElements.values || []).length).to.equal(1);
+
+    await act(() => selection.select(serviceTask));
+
+    // when
+    const removeButton = domQuery('.bio-properties-panel-remove-entry', getGroup());
+    await act(() => fireEvent.click(removeButton));
+
+    // then — the empty extensionElements container is removed from the parent
+    expect(bo.extensionElements, 'extensionElements dropped when empty').not.to.exist;
+  }));
+
+
   it('should preserve added properties on undo', inject(async function(elementRegistry, selection, commandStack) {
 
     // given
@@ -348,6 +371,30 @@ describe('provider/zenbpm - ExtensionProperties', function() {
         propsAfter.find((p: any) => p.get('name') === 'zenbpmModeler:exampleOutputJson'),
         'moddle property removed after clear',
       ).not.to.exist;
+    }));
+
+
+    it('should drop the now-empty bpmn:ExtensionElements container when the last example-data property is cleared', inject(async function(elementRegistry, selection) {
+
+      // given — ServiceTask_withModeler's extensionElements holds ONLY the
+      // zenbpm:Properties container, so clearing the example output value must
+      // also clean up the empty <bpmn:extensionElements> wrapper (otherwise it
+      // serializes as dirty XML).
+      const serviceTask = elementRegistry.get('ServiceTask_withModeler');
+      const bo = serviceTask.businessObject;
+
+      // assume
+      expect(bo.extensionElements, 'extensionElements exists before').to.exist;
+      expect((bo.extensionElements.values || []).length).to.equal(1);
+
+      await act(() => selection.select(serviceTask));
+
+      // when
+      const textarea = exampleDataValueInput();
+      await act(() => fireEvent.input(textarea, { target: { value: '' } }));
+
+      // then — the empty extensionElements container is removed from the parent
+      expect(bo.extensionElements, 'extensionElements dropped when empty').not.to.exist;
     }));
 
 

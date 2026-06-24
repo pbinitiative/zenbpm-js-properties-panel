@@ -6,7 +6,7 @@ import {
   isTextAreaEntryEdited,
 } from '@bpmn-io/properties-panel';
 import { useService } from 'bpmn-js-properties-panel';
-import { getExtensionElement } from '../../../util/ExtensionElementsUtil';
+import { getExtensionElement, removeExtensionElement } from '../../../util/ExtensionElementsUtil';
 import { isModelerPropertyName, validateJson } from '../../../util/ValidationUtil';
 import { isExampleDataPropertyName } from './ExampleDataProps';
 
@@ -145,15 +145,10 @@ function removeProperty(element: any, property: any, commandStack: any) {
       properties: { properties: remaining },
     });
   } else {
-    // last one removed → drop the whole `zenbpm:Properties` container too
-    const extensionElements = element.businessObject.extensionElements;
-    commandStack.execute('element.updateModdleProperties', {
-      element,
-      moddleElement: extensionElements,
-      properties: {
-        values: (extensionElements.values || []).filter((e: any) => !e.$instanceOf(TYPE_PROPERTIES)),
-      },
-    });
+    // last one removed → drop the whole `zenbpm:Properties` container too.
+    // `removeExtensionElement` also removes an now-empty <bpmn:ExtensionElements>
+    // container, which the previous inline filter would have left behind as dirty XML.
+    removeExtensionElement(element, element.businessObject, TYPE_PROPERTIES, commandStack);
   }
 }
 
@@ -172,7 +167,12 @@ export function ExtensionPropertiesGroup(element: any, injector: any): any | nul
   // not appear here.
   const visibleList = list.filter((p: any) => !isExampleDataPropertyName(p.get('name')));
 
-  const items = visibleList.map((property: any, index: number) => {
+  // Hide example-data properties from this list but keep the underlying
+  // (unfiltered) index in the item id, so the `add` callback's `list.length`
+  // computation stays consistent with the position new properties get appended
+  // at — see IoMappingProps.ts for the same pattern.
+  const items = visibleList.map((property: any) => {
+    const index = list.indexOf(property);
     const id = `${element.id}-zenbpm-extensionProperty-${index}`;
     return {
       id,
