@@ -249,11 +249,24 @@ function removeExtensionElement(element, bo, type, commandStack) {
     const matching = (extensionElements.values || []).filter((e) => e.$instanceOf(type));
     if (!matching.length)
         return;
-    commandStack.execute('element.updateModdleProperties', {
-        element,
-        moddleElement: extensionElements,
-        properties: { values: (extensionElements.values || []).filter((e) => !e.$instanceOf(type)) },
-    });
+    const remainingValues = (extensionElements.values || []).filter((e) => !e.$instanceOf(type));
+    if (remainingValues.length === 0) {
+        // Removing the last value would leave an empty <bpmn:extensionElements>
+        // container (dirty XML). Drop the container from the parent instead —
+        // mirrors the handling in `removeParam` (IoMappingProps.ts).
+        commandStack.execute('element.updateModdleProperties', {
+            element,
+            moddleElement: bo,
+            properties: { extensionElements: undefined },
+        });
+    }
+    else {
+        commandStack.execute('element.updateModdleProperties', {
+            element,
+            moddleElement: extensionElements,
+            properties: { values: remainingValues },
+        });
+    }
 }
 /**
  * Atomically swap extension elements: remove all instances of `removeType` and
@@ -1305,14 +1318,10 @@ function clearModelerProperty(element, commandStack, propertyName) {
         });
         return;
     }
-    // last one — drop the whole `zenbpm:Properties` container
-    commandStack.execute('element.updateModdleProperties', {
-        element,
-        moddleElement: extensionElements,
-        properties: {
-            values: (extensionElements.values || []).filter((e) => !e.$instanceOf(TYPE_PROPERTIES$1)),
-        },
-    });
+    // last one — drop the whole `zenbpm:Properties` container.
+    // `removeExtensionElement` also clears a now-empty <bpmn:ExtensionElements>
+    // container, which the previous inline filter would leave behind as dirty XML.
+    removeExtensionElement(element, bo, TYPE_PROPERTIES$1, commandStack);
 }
 // ─── per-row component (stable identity across re-renders) ─────────────────
 function ExampleDataEntry(props) {
@@ -1472,15 +1481,10 @@ function removeProperty(element, property, commandStack) {
         });
     }
     else {
-        // last one removed → drop the whole `zenbpm:Properties` container too
-        const extensionElements = element.businessObject.extensionElements;
-        commandStack.execute('element.updateModdleProperties', {
-            element,
-            moddleElement: extensionElements,
-            properties: {
-                values: (extensionElements.values || []).filter((e) => !e.$instanceOf(TYPE_PROPERTIES)),
-            },
-        });
+        // last one removed → drop the whole `zenbpm:Properties` container too.
+        // `removeExtensionElement` also removes an now-empty <bpmn:ExtensionElements>
+        // container, which the previous inline filter would have left behind as dirty XML.
+        removeExtensionElement(element, element.businessObject, TYPE_PROPERTIES, commandStack);
     }
 }
 // ─── exported group factory ──────────────────────────────────────────────────
@@ -1494,7 +1498,12 @@ function ExtensionPropertiesGroup(element, injector) {
     // surfaced in the dedicated "Example data" group instead, so they must
     // not appear here.
     const visibleList = list.filter((p) => !isExampleDataPropertyName(p.get('name')));
-    const items = visibleList.map((property, index) => {
+    // Hide example-data properties from this list but keep the underlying
+    // (unfiltered) index in the item id, so the `add` callback's `list.length`
+    // computation stays consistent with the position new properties get appended
+    // at — see IoMappingProps.ts for the same pattern.
+    const items = visibleList.map((property) => {
+        const index = list.indexOf(property);
         const id = `${element.id}-zenbpm-extensionProperty-${index}`;
         return {
             id,
