@@ -852,7 +852,7 @@ const OUTPUT_ONLY_ELEMENTS = new Set([
  * modeller-facing input mapping list. The underlying `zenbpm:Input` is left
  * untouched in the model — it is only hidden from the rendered UI.
  */
-const HIDDEN_INPUT_TARGETS = new Set([ZEN_FORM]);
+const HIDDEN_INPUT_TARGETS = new Set([]);
 function supportsInputMapping(element) {
     return IO_ELEMENTS.has(element.type);
 }

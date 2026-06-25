@@ -26,7 +26,7 @@ const OUTPUT_ONLY_ELEMENTS = new Set([
  * modeller-facing input mapping list. The underlying `zenbpm:Input` is left
  * untouched in the model — it is only hidden from the rendered UI.
  */
-const HIDDEN_INPUT_TARGETS: ReadonlySet<string> = new Set([ ZEN_FORM ]);
+const HIDDEN_INPUT_TARGETS: ReadonlySet<string> = new Set([]);
 
 export function supportsInputMapping(element: any): boolean {
   return IO_ELEMENTS.has(element.type);
@@ -45,8 +45,8 @@ function ParamEntry(props: any) {
   const { element: bpmnElement, param, prop, id, labelKey } = props;
 
   const commandStack = useService('commandStack');
-  const translate    = useService('translate');
-  const debounce     = useService('debounceInput');
+  const translate = useService('translate');
+  const debounce = useService('debounceInput');
 
   const getValue = () =>
     prop === 'source' ? getFeelValue((param as any)[prop]) : ((param as any)[prop] || '');
@@ -133,12 +133,12 @@ export function createInputMappingGroup(element: any, injector: any): any | null
   if (!supportsInputMapping(element)) return null;
 
   const commandStack = injector.get('commandStack');
-  const bpmnFactory  = injector.get('bpmnFactory');
-  const translate    = injector.get('translate');
-  const eventBus     = injector.get('eventBus');
+  const bpmnFactory = injector.get('bpmnFactory');
+  const translate = injector.get('translate');
+  const eventBus = injector.get('eventBus');
 
-  const bo        = element.businessObject;
-  const ioMapping  = getExtensionElement(bo, 'zenbpm:IoMapping');
+  const bo = element.businessObject;
+  const ioMapping = getExtensionElement(bo, 'zenbpm:IoMapping');
   const inputs: any[] = ioMapping?.inputParameters || [];
 
   // Hide system-managed targets (e.g. ZEN_FORM) from the modeller-facing
@@ -197,12 +197,12 @@ export function createOutputMappingGroup(element: any, injector: any): any | nul
   if (!supportsOutputMapping(element)) return null;
 
   const commandStack = injector.get('commandStack');
-  const bpmnFactory  = injector.get('bpmnFactory');
-  const translate    = injector.get('translate');
-  const eventBus     = injector.get('eventBus');
+  const bpmnFactory = injector.get('bpmnFactory');
+  const translate = injector.get('translate');
+  const eventBus = injector.get('eventBus');
 
-  const bo        = element.businessObject;
-  const ioMapping  = getExtensionElement(bo, 'zenbpm:IoMapping');
+  const bo = element.businessObject;
+  const ioMapping = getExtensionElement(bo, 'zenbpm:IoMapping');
   const outputs: any[] = ioMapping?.outputParameters || [];
 
   const items = outputs.map((output: any, index: number) => {

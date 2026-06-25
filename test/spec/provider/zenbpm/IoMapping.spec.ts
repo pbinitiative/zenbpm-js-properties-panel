@@ -14,7 +14,7 @@ import diagramXML from './fixtures/IoMapping.bpmn';
 
 describe('provider/zenbpm - IoMapping', function() {
 
-  const INPUT_GROUP  = '[data-group-id="group-zenbpm-ioMapping-inputs"]';
+  const INPUT_GROUP = '[data-group-id="group-zenbpm-ioMapping-inputs"]';
   const OUTPUT_GROUP = '[data-group-id="group-zenbpm-ioMapping-outputs"]';
 
   let container;
@@ -25,7 +25,7 @@ describe('provider/zenbpm - IoMapping', function() {
 
   beforeEach(bootstrapZenBpmPropertiesPanel(diagramXML));
 
-  function getInputGroup()  { return domQuery(INPUT_GROUP,  container); }
+  function getInputGroup() { return domQuery(INPUT_GROUP, container); }
   function getOutputGroup() { return domQuery(OUTPUT_GROUP, container); }
 
   function firstRemoveButton(group) {
@@ -87,7 +87,7 @@ describe('provider/zenbpm - IoMapping', function() {
   function elementBlockFromXml(xml, elementId) {
     const tagPattern = '(?:serviceTask|userTask|sendTask|scriptTask|endEvent|intermediateThrowEvent|subProcess|callActivity)';
     const selfClosing = '<bpmn:' + tagPattern + '\\b[^>]*\\bid="' + elementId + '"[^>]*/>';
-    const withBody    = '<bpmn:' + tagPattern + '\\b[^>]*\\bid="' + elementId + '"[^>]*>[\\s\\S]*?</bpmn:' + tagPattern + '>';
+    const withBody = '<bpmn:' + tagPattern + '\\b[^>]*\\bid="' + elementId + '"[^>]*>[\\s\\S]*?</bpmn:' + tagPattern + '>';
     const re = new RegExp('(' + selfClosing + ')|(' + withBody + ')');
     const m = xml.match(re);
     return m ? (m[1] || m[2]) : '<not-found/>';
@@ -169,7 +169,7 @@ describe('provider/zenbpm - IoMapping', function() {
     expect(ioMappingOf(userTask), 'ioMapping should be gone').not.to.exist;
 
     const kinds = childKinds(userTask);
-    expect(kinds, 'extensionElements should remain with one child').to.deep.equal([ 'zenbpm:AssignmentDefinition' ]);
+    expect(kinds, 'extensionElements should remain with one child').to.deep.equal(['zenbpm:AssignmentDefinition']);
 
     const bpmnjs = getBpmnJS();
     const { xml } = await bpmnjs.saveXML({ format: true });
@@ -202,36 +202,6 @@ describe('provider/zenbpm - IoMapping', function() {
     const block = elementBlockFromXml(xml, 'ServiceTask_oneInput');
     expect(block).to.match(/<zenbpm:ioMapping[\s>]/);
     expect(block).to.match(/<zenbpm:input\s/);
-  }));
-
-
-  it('hides the ZEN_FORM input from the input mapping list (system-managed)', inject(async function(elementRegistry, selection) {
-
-    // given
-    const userTask = elementRegistry.get('UserTask_withZenForm');
-    expect(inputsOf(userTask).length, 'fixture sanity: 2 inputs in model').to.equal(2);
-    const zenFormInput = inputsOf(userTask).find((p: any) => p.target === 'ZEN_FORM');
-    expect(zenFormInput, 'fixture sanity: ZEN_FORM input exists in model').to.exist;
-
-    // when
-    await act(() => selection.select(userTask));
-
-    // then — only the user-authored input is rendered
-    const group = getInputGroup();
-    expect(group, 'input group').to.exist;
-    const items = domQueryAll('.bio-properties-panel-collapsible-entry', group);
-    expect(items.length).to.equal(1);
-
-    // ...and its label is the user-authored target, not ZEN_FORM
-    const labels = Array.from(items).map((el) => el.textContent || '');
-    expect(labels.some((t) => t.includes('ZEN_FORM')), 'ZEN_FORM label should be hidden').to.be.false;
-    expect(labels.some((t) => t.includes('user')), 'user-authored input should be visible').to.be.true;
-
-    // ...and the underlying ZEN_FORM data is preserved
-    expect(inputsOf(userTask).length, 'ZEN_FORM input is still in the model').to.equal(2);
-    const stillThere = inputsOf(userTask).find((p: any) => p.target === 'ZEN_FORM');
-    expect(stillThere, 'ZEN_FORM input still in the model').to.exist;
-    expect(stillThere.source, 'ZEN_FORM source preserved').to.equal('="{}"');
   }));
 
 });
