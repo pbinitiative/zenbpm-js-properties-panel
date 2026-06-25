@@ -11,6 +11,12 @@ export declare function ZenFormProps(element: any): {
     isEdited: () => boolean;
 }[];
 declare function ZenFormDesignButtonEntry(props: any): any;
+/**
+ * Form field keys currently defined in the element's ZEN_FORM schema.
+ * Used by the Output mapping group to badge rows auto-created from a
+ * form field. Returns [] when there is no form / an unparsable form.
+ */
+export declare function getFormFieldKeys(element: any): string[];
 /** Test-only: reset the per-element dedup guard. Not public API. */
 export declare function __resetFormSyncCacheForTesting(): void;
 export declare function setupFormSaveHandler(injector: any): void;

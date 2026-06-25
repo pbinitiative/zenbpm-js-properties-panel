@@ -6,9 +6,10 @@ import {
   isFeelEntryEdited
 } from '@bpmn-io/properties-panel';
 import { useService } from 'bpmn-js-properties-panel';
+import { createElement } from '@bpmn-io/properties-panel/preact';
 import { getExtensionElement } from '../../../util/ExtensionElementsUtil';
 import { getFeelValue } from '../../../util/FeelUtil';
-import { ZEN_FORM } from './ZenFormProps';
+import { ZEN_FORM, getFormFieldKeys } from './ZenFormProps';
 
 const IO_ELEMENTS = new Set([
   'bpmn:ServiceTask', 'bpmn:BusinessRuleTask', 'bpmn:SendTask', 'bpmn:ScriptTask',
@@ -41,6 +42,25 @@ export function supportsOutputMapping(element: any): boolean {
 // previous `makeParamEntry` factory returned a new function on every render,
 // which made Preact remount the input ~600ms after the user started typing
 // and dropped keyboard focus.
+// Tiny "form" glyph shown next to output-mapping rows that were auto-created
+// from a Zen Form field (source === `=<formKey>`). It is purely informative —
+// such outputs are never auto-deleted, the badge just tells them apart from
+// ones the modeller created by hand.
+function FormFieldIcon() {
+  return createElement('span', {
+    class: 'zenbpm-form-output-icon',
+    title: 'Created from Zen Form field',
+    style: 'display: inline-flex; align-items: center; margin-left: 4px',
+  },
+  createElement('svg', {
+    width: '12', height: '12', viewBox: '0 0 16 16',
+    fill: 'none', stroke: 'currentColor', 'stroke-width': '1.4',
+    style: 'color: #4d90fe',
+  },
+  createElement('rect', { x: '2.5', y: '2.5', width: '11', height: '11', rx: '1.5' }),
+  createElement('path', { d: 'M5 6h6M5 9h6M5 11.5h4', 'stroke-linecap': 'round' })));
+}
+
 function ParamEntry(props: any) {
   const { element: bpmnElement, param, prop, id, labelKey } = props;
 
@@ -205,11 +225,24 @@ export function createOutputMappingGroup(element: any, injector: any): any | nul
   const ioMapping = getExtensionElement(bo, 'zenbpm:IoMapping');
   const outputs: any[] = ioMapping?.outputParameters || [];
 
+  // `source` values produced by the Zen Form auto-sync (one per current form
+  // field). Outputs whose source matches get a small form-field badge so the
+  // modeller can tell auto-created rows from manual ones. Zen Forms only
+  // exist on UserTasks, so never badge outputs of any other element type.
+  const formSources = element.type === 'bpmn:UserTask'
+    ? new Set(getFormFieldKeys(element).map((k: string) => `=${k}`))
+    : new Set<string>();
+
   const items = outputs.map((output: any, index: number) => {
     const id = `${element.id}-zenbpm-output-${index}`;
+    const labelText = output.target || translate('<empty>');
+    const isFormConnected = formSources.has(output.source);
+    const label = isFormConnected
+      ? createElement('span', { style: 'display: inline-flex; align-items: center' }, labelText, createElement(FormFieldIcon, null))
+      : labelText;
     return {
       id,
-      label: output.target || translate('<empty>'),
+      label,
       entries: [
         {
           id: `${id}-source`,

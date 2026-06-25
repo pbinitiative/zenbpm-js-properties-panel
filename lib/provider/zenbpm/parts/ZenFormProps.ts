@@ -106,6 +106,17 @@ function scanFormVariables(formJson: string): string[] {
 }
 
 /**
+ * Form field keys currently defined in the element's ZEN_FORM schema.
+ * Used by the Output mapping group to badge rows auto-created from a
+ * form field. Returns [] when there is no form / an unparsable form.
+ */
+export function getFormFieldKeys(element: any): string[] {
+  const formJson = getZenFormValue(element);
+  if (!formJson) return [];
+  return scanFormVariables(formJson);
+}
+
+/**
  * Additive, non-destructive sync: create an output for any form field
  * lacking a matching one; never delete existing (incl. manual) outputs.
  */

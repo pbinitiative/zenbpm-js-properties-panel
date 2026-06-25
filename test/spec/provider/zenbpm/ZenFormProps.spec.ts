@@ -5,6 +5,8 @@ import { act } from '@testing-library/preact';
 
 import { bootstrapZenBpmPropertiesPanel, inject } from 'test/TestHelper';
 
+import { queryAll as domQueryAll } from 'min-dom';
+
 import { getExtensionElement } from 'lib/util/ExtensionElementsUtil';
 import { __resetFormSyncCacheForTesting } from 'lib/provider/zenbpm/parts/ZenFormProps';
 
@@ -225,6 +227,30 @@ describe('provider/zenbpm - ZenForm output auto-sync', function() {
       // then — exactly one ZEN_FORM input, target preserved
       const zenInputs = inputsOf(userTask).filter((i) => i.target === 'ZEN_FORM');
       expect(zenInputs.length, 'exactly one ZEN_FORM input').to.equal(1);
+    },
+  ));
+
+
+  it('badges form-connected outputs with a form icon and leaves manual ones unbadged', inject(
+    async function(elementRegistry, commandStack, bpmnFactory, selection) {
+      // given — task with a pre-existing manual output
+      const userTask = elementRegistry.get('UserTask_withFormAndManualOutput');
+      await act(() => saveZenForm(elementRegistry, commandStack, bpmnFactory, 'UserTask_withFormAndManualOutput', FORM_SCHEMA));
+      await flushSync();
+
+      // when — render the element so the Output mapping group is drawn
+      await act(() => selection.select(userTask));
+      await flushSync();
+
+      const outputGroup = container.querySelector('[data-group-id="group-zenbpm-ioMapping-outputs"]');
+      expect(outputGroup, 'output group rendered').to.exist;
+
+      const icons = domQueryAll('.zenbpm-form-output-icon', outputGroup);
+      const rows = domQueryAll('.bio-properties-panel-collapsible-entry', outputGroup);
+
+      // then — one icon per form field (4), none for the manual output (1 row)
+      expect(rows.length, '5 output rows').to.equal(5);
+      expect(icons.length, 'one badge per form-connected output').to.equal(4);
     },
   ));
 
