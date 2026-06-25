@@ -106,16 +106,16 @@ function scanFormVariables(formJson: string): string[] {
 }
 
 /**
- * Sync output mappings with current form fields.
- * - Form fields without an existing output get a default one.
- * - Existing outputs with the same source are kept, preserving user's target.
- * - Outputs for removed form fields are dropped.
+ * Additive, non-destructive sync: create an output for any form field
+ * lacking a matching one; never delete existing (incl. manual) outputs.
  */
 function syncOutputMappings(
   element: any,
   injector: any,
   variableKeys: string[],
 ): void {
+  if (variableKeys.length === 0) return;
+
   const commandStack = injector.get('commandStack');
   const bpmnFactory = injector.get('bpmnFactory');
 
@@ -159,33 +159,32 @@ function syncOutputMappings(
     });
   }
 
-  // Index existing outputs by source
-  const existingBySource = new Map(
-    (ioMapping.outputParameters || []).map((o: any) => [o.source, o]),
-  );
+  const existingOutputs: any[] = ioMapping.outputParameters || [];
+  const existingSources = new Set(existingOutputs.map((o: any) => o.source));
 
-  // For each form field, produce an output — reusing existing one if available
-  const outputs: any[] = variableKeys.map((key: string) => {
+  const outputs: any[] = [...existingOutputs];
+  const seenKeys = new Set<string>();
+  for (const key of variableKeys) {
+    if (seenKeys.has(key)) continue;
+    seenKeys.add(key);
+
     const source = `=${key}`;
-    const existing = existingBySource.get(source);
-    if (existing) return existing;
+    if (existingSources.has(source)) continue;
 
-    const output = bpmnFactory.create('zenbpm:Output', {
-      source,
-      target: key,
-    });
+    const output = bpmnFactory.create('zenbpm:Output', { source, target: key });
     output.$parent = ioMapping;
-    return output;
-  });
+    outputs.push(output);
+  }
 
-  commands.push({
-    cmd: 'element.updateModdleProperties',
-    context: {
-      element,
-      moddleElement: ioMapping,
-      properties: { outputParameters: outputs },
-    },
-  });
+  // Only touch the model when we actually added outputs.
+  if (outputs.length > existingOutputs.length) {
+    commands.push({
+      cmd: 'element.updateModdleProperties',
+      context: { element, moddleElement: ioMapping, properties: { outputParameters: outputs } },
+    });
+  } else if (commands.length === 0) {
+    return;
+  }
 
   commandStack.execute('properties-panel.multi-command-executor', commands);
 }
@@ -193,6 +192,11 @@ function syncOutputMappings(
 // ─── Form save handler ───────────────────────────────────────────────────────
 
 const lastFormValueByElement = new Map<string, string>();
+
+/** Test-only: reset the per-element dedup guard. Not public API. */
+export function __resetFormSyncCacheForTesting(): void {
+  lastFormValueByElement.clear();
+}
 
 export function setupFormSaveHandler(injector: any): void {
   const eventBus = injector.get('eventBus');
@@ -205,15 +209,22 @@ export function setupFormSaveHandler(injector: any): void {
 
       const { moddleElement, properties, element } = context;
 
-      if (
-        moddleElement?.$type !== 'zenbpm:Input' ||
-        moddleElement.target !== ZEN_FORM ||
-        properties?.source === undefined
-      ) {
-        return;
-      }
-
       if (!element || element.type !== 'bpmn:UserTask') return;
+
+      // Trigger on both form-edit (Input.source updated) and form-create
+      // (new ZEN_FORM Input added via IoMapping.inputParameters). Without
+      // the create case the sync only fires on the second save.
+      const inputUpdated =
+        moddleElement?.$type === 'zenbpm:Input' &&
+        moddleElement.target === ZEN_FORM &&
+        properties?.source !== undefined;
+
+      const inputCreated =
+        moddleElement?.$type === 'zenbpm:IoMapping' &&
+        Array.isArray(properties?.inputParameters) &&
+        (properties.inputParameters as any[]).some((p: any) => p?.target === ZEN_FORM);
+
+      if (!inputUpdated && !inputCreated) return;
 
       // Defer to avoid nested commandStack.execute() while stack is mid-execution
       setTimeout(() => {

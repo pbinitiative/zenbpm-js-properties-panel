@@ -90,12 +90,12 @@ function scanFormVariables(formJson) {
     }
 }
 /**
- * Sync output mappings with current form fields.
- * - Form fields without an existing output get a default one.
- * - Existing outputs with the same source are kept, preserving user's target.
- * - Outputs for removed form fields are dropped.
+ * Additive, non-destructive sync: create an output for any form field
+ * lacking a matching one; never delete existing (incl. manual) outputs.
  */
 function syncOutputMappings(element, injector, variableKeys) {
+    if (variableKeys.length === 0)
+        return;
     const commandStack = injector.get('commandStack');
     const bpmnFactory = injector.get('bpmnFactory');
     const bo = element.businessObject;
@@ -133,29 +133,31 @@ function syncOutputMappings(element, injector, variableKeys) {
             },
         });
     }
-    // Index existing outputs by source
-    const existingBySource = new Map((ioMapping.outputParameters || []).map((o) => [o.source, o]));
-    // For each form field, produce an output — reusing existing one if available
-    const outputs = variableKeys.map((key) => {
+    const existingOutputs = ioMapping.outputParameters || [];
+    const existingSources = new Set(existingOutputs.map((o) => o.source));
+    const outputs = [...existingOutputs];
+    const seenKeys = new Set();
+    for (const key of variableKeys) {
+        if (seenKeys.has(key))
+            continue;
+        seenKeys.add(key);
         const source = `=${key}`;
-        const existing = existingBySource.get(source);
-        if (existing)
-            return existing;
-        const output = bpmnFactory.create('zenbpm:Output', {
-            source,
-            target: key,
-        });
+        if (existingSources.has(source))
+            continue;
+        const output = bpmnFactory.create('zenbpm:Output', { source, target: key });
         output.$parent = ioMapping;
-        return output;
-    });
-    commands.push({
-        cmd: 'element.updateModdleProperties',
-        context: {
-            element,
-            moddleElement: ioMapping,
-            properties: { outputParameters: outputs },
-        },
-    });
+        outputs.push(output);
+    }
+    // Only touch the model when we actually added outputs.
+    if (outputs.length > existingOutputs.length) {
+        commands.push({
+            cmd: 'element.updateModdleProperties',
+            context: { element, moddleElement: ioMapping, properties: { outputParameters: outputs } },
+        });
+    }
+    else if (commands.length === 0) {
+        return;
+    }
     commandStack.execute('properties-panel.multi-command-executor', commands);
 }
 // ─── Form save handler ───────────────────────────────────────────────────────
@@ -167,12 +169,18 @@ function setupFormSaveHandler(injector) {
         if (!context)
             return;
         const { moddleElement, properties, element } = context;
-        if (moddleElement?.$type !== 'zenbpm:Input' ||
-            moddleElement.target !== ZEN_FORM ||
-            properties?.source === undefined) {
-            return;
-        }
         if (!element || element.type !== 'bpmn:UserTask')
+            return;
+        // Trigger on both form-edit (Input.source updated) and form-create
+        // (new ZEN_FORM Input added via IoMapping.inputParameters). Without
+        // the create case the sync only fires on the second save.
+        const inputUpdated = moddleElement?.$type === 'zenbpm:Input' &&
+            moddleElement.target === ZEN_FORM &&
+            properties?.source !== undefined;
+        const inputCreated = moddleElement?.$type === 'zenbpm:IoMapping' &&
+            Array.isArray(properties?.inputParameters) &&
+            properties.inputParameters.some((p) => p?.target === ZEN_FORM);
+        if (!inputUpdated && !inputCreated)
             return;
         // Defer to avoid nested commandStack.execute() while stack is mid-execution
         setTimeout(() => {

@@ -11,5 +11,7 @@ export declare function ZenFormProps(element: any): {
     isEdited: () => boolean;
 }[];
 declare function ZenFormDesignButtonEntry(props: any): any;
+/** Test-only: reset the per-element dedup guard. Not public API. */
+export declare function __resetFormSyncCacheForTesting(): void;
 export declare function setupFormSaveHandler(injector: any): void;
 export {};
