@@ -12,6 +12,7 @@ import { ConditionExpressionProps } from './parts/ConditionExpressionProps';
 import { CorrelationKeyProps } from './parts/CorrelationKeyProps';
 import { ExtensionPropertiesGroup } from './parts/ExtensionPropertiesProps';
 import { ExampleDataProps } from './parts/ExampleDataProps';
+import { BusinessKeyProps } from './parts/BusinessKeyProps';
 
 const PROVIDER_PRIORITY = 500;
 
@@ -75,6 +76,19 @@ export class ZenBpmPropertiesProvider {
           id: 'zenbpm-calledElement',
           label: translate('Called element'),
           entries: CalledElementProps(element),
+          component: Group,
+        });
+      }
+
+      // ── Business key ─────────────────────────────────────────────────────
+      const isChildProcessActivity =
+        element.type === 'bpmn:CallActivity' ||
+        (element.type === 'bpmn:SubProcess' && !element.businessObject.triggeredByEvent);
+      if (isChildProcessActivity) {
+        groups.push({
+          id: 'zenbpm-businessKey',
+          label: translate('Business key'),
+          entries: BusinessKeyProps(element),
           component: Group,
         });
       }

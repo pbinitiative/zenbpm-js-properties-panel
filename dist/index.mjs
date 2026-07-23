@@ -1,4 +1,4 @@
-import { isTextFieldEntryEdited, TextFieldEntry, isFeelEntryEdited, FeelEntry, isSelectEntryEdited, SelectEntry, isToggleSwitchEntryEdited, ToggleSwitchEntry, ListGroup, isTextAreaEntryEdited, TextAreaEntry, Group } from '@bpmn-io/properties-panel';
+import { isTextFieldEntryEdited, TextFieldEntry, isFeelEntryEdited, FeelEntry, isSelectEntryEdited, SelectEntry, isToggleSwitchEntryEdited, ToggleSwitchEntry, ListGroup, isTextAreaEntryEdited, TextAreaEntry, isCheckboxEntryEdited, CheckboxEntry, Group } from '@bpmn-io/properties-panel';
 import { createElement } from '@bpmn-io/properties-panel/preact';
 import { useService } from 'bpmn-js-properties-panel';
 
@@ -555,11 +555,11 @@ function bindingEntries(idPrefix, bindingTypeComponent, versionTagComponent, ele
     return entries;
 }
 
-const TYPE$3 = 'zenbpm:CalledElement';
+const TYPE$4 = 'zenbpm:CalledElement';
 const ID$2 = 'zenbpm-calledEl';
 // Module-level component instances — stable references, never recreated on render.
-const BindingTypeEntry$1 = makeBindingTypeEntry(ID$2, TYPE$3);
-const BindingVersionTagEntry$1 = makeVersionTagEntry(ID$2, TYPE$3);
+const BindingTypeEntry$1 = makeBindingTypeEntry(ID$2, TYPE$4);
+const BindingVersionTagEntry$1 = makeVersionTagEntry(ID$2, TYPE$4);
 // ─── entry components ────────────────────────────────────────────────────────
 function ProcessIdEntry(props) {
     const { element } = props;
@@ -568,8 +568,8 @@ function ProcessIdEntry(props) {
     const translate = useService('translate');
     const debounce = useService('debounceInput');
     const bo = element.businessObject;
-    const getValue = () => getExtensionElement(bo, TYPE$3)?.processId ?? '';
-    const setValue = (value) => updateExtensionElementProps(element, bo, TYPE$3, { processId: value }, bpmnFactory, commandStack);
+    const getValue = () => getExtensionElement(bo, TYPE$4)?.processId ?? '';
+    const setValue = (value) => updateExtensionElementProps(element, bo, TYPE$4, { processId: value }, bpmnFactory, commandStack);
     return TextFieldEntry({ element, id: `${ID$2}-processId`, label: translate('Process ID'), getValue, setValue, debounce });
 }
 function PropagateAllChildVarsEntry(props) {
@@ -578,8 +578,8 @@ function PropagateAllChildVarsEntry(props) {
     const bpmnFactory = useService('bpmnFactory');
     const translate = useService('translate');
     const bo = element.businessObject;
-    const getValue = () => getExtensionElement(bo, TYPE$3)?.propagateAllChildVariables ?? false;
-    const setValue = (value) => updateExtensionElementProps(element, bo, TYPE$3, { propagateAllChildVariables: value }, bpmnFactory, commandStack);
+    const getValue = () => getExtensionElement(bo, TYPE$4)?.propagateAllChildVariables ?? false;
+    const setValue = (value) => updateExtensionElementProps(element, bo, TYPE$4, { propagateAllChildVariables: value }, bpmnFactory, commandStack);
     return ToggleSwitchEntry({ element, id: `${ID$2}-propagateAllChildVariables`, label: translate('Propagate all child variables'), getValue, setValue });
 }
 function PropagateAllParentVarsEntry(props) {
@@ -588,8 +588,8 @@ function PropagateAllParentVarsEntry(props) {
     const bpmnFactory = useService('bpmnFactory');
     const translate = useService('translate');
     const bo = element.businessObject;
-    const getValue = () => getExtensionElement(bo, TYPE$3)?.propagateAllParentVariables ?? true;
-    const setValue = (value) => updateExtensionElementProps(element, bo, TYPE$3, { propagateAllParentVariables: value }, bpmnFactory, commandStack);
+    const getValue = () => getExtensionElement(bo, TYPE$4)?.propagateAllParentVariables ?? true;
+    const setValue = (value) => updateExtensionElementProps(element, bo, TYPE$4, { propagateAllParentVariables: value }, bpmnFactory, commandStack);
     return ToggleSwitchEntry({ element, id: `${ID$2}-propagateAllParentVariables`, label: translate('Propagate all parent variables'), getValue, setValue });
 }
 // ─── exported entry list ─────────────────────────────────────────────────────
@@ -598,17 +598,17 @@ function CalledElementProps(element) {
         return [];
     return [
         { id: `${ID$2}-processId`, component: ProcessIdEntry, isEdited: isTextFieldEntryEdited },
-        ...bindingEntries(ID$2, BindingTypeEntry$1, BindingVersionTagEntry$1, element, TYPE$3),
+        ...bindingEntries(ID$2, BindingTypeEntry$1, BindingVersionTagEntry$1, element, TYPE$4),
         { id: `${ID$2}-propagateAllChildVariables`, component: PropagateAllChildVarsEntry, isEdited: isToggleSwitchEntryEdited },
         { id: `${ID$2}-propagateAllParentVariables`, component: PropagateAllParentVarsEntry, isEdited: isToggleSwitchEntryEdited },
     ];
 }
 
-const TYPE$2 = 'zenbpm:CalledDecision';
+const TYPE$3 = 'zenbpm:CalledDecision';
 const ID$1 = 'zenbpm-calledDecision';
 // Module-level component instances — stable references, never recreated on render.
-const BindingTypeEntry = makeBindingTypeEntry(ID$1, TYPE$2);
-const BindingVersionTagEntry = makeVersionTagEntry(ID$1, TYPE$2);
+const BindingTypeEntry = makeBindingTypeEntry(ID$1, TYPE$3);
+const BindingVersionTagEntry = makeVersionTagEntry(ID$1, TYPE$3);
 // ─── entry components ────────────────────────────────────────────────────────
 function DecisionIdEntry(props) {
     const { element } = props;
@@ -617,8 +617,8 @@ function DecisionIdEntry(props) {
     const translate = useService('translate');
     const debounce = useService('debounceInput');
     const bo = element.businessObject;
-    const getValue = () => getExtensionElement(bo, TYPE$2)?.decisionId ?? '';
-    const setValue = (value) => updateExtensionElementProps(element, bo, TYPE$2, { decisionId: value }, bpmnFactory, commandStack);
+    const getValue = () => getExtensionElement(bo, TYPE$3)?.decisionId ?? '';
+    const setValue = (value) => updateExtensionElementProps(element, bo, TYPE$3, { decisionId: value }, bpmnFactory, commandStack);
     return TextFieldEntry({ element, id: `${ID$1}-decisionId`, label: translate('Decision ID'), getValue, setValue, debounce });
 }
 function ResultVariableEntry(props) {
@@ -628,8 +628,8 @@ function ResultVariableEntry(props) {
     const translate = useService('translate');
     const debounce = useService('debounceInput');
     const bo = element.businessObject;
-    const getValue = () => getExtensionElement(bo, TYPE$2)?.resultVariable ?? '';
-    const setValue = (value) => updateExtensionElementProps(element, bo, TYPE$2, { resultVariable: value }, bpmnFactory, commandStack);
+    const getValue = () => getExtensionElement(bo, TYPE$3)?.resultVariable ?? '';
+    const setValue = (value) => updateExtensionElementProps(element, bo, TYPE$3, { resultVariable: value }, bpmnFactory, commandStack);
     return TextFieldEntry({ element, id: `${ID$1}-resultVariable`, label: translate('Result variable'), getValue, setValue, debounce });
 }
 // ─── exported entry list ─────────────────────────────────────────────────────
@@ -638,7 +638,7 @@ function CalledDecisionProps(element) {
         return [];
     return [
         { id: `${ID$1}-decisionId`, component: DecisionIdEntry, isEdited: isTextFieldEntryEdited },
-        ...bindingEntries(ID$1, BindingTypeEntry, BindingVersionTagEntry, element, TYPE$2),
+        ...bindingEntries(ID$1, BindingTypeEntry, BindingVersionTagEntry, element, TYPE$3),
         { id: `${ID$1}-resultVariable`, component: ResultVariableEntry, isEdited: isTextFieldEntryEdited },
     ];
 }
@@ -723,7 +723,7 @@ function VersionTagProps(element) {
     ];
 }
 
-const TYPE$1 = 'zenbpm:LoopCharacteristics';
+const TYPE$2 = 'zenbpm:LoopCharacteristics';
 // ─── helpers ─────────────────────────────────────────────────────────────────
 /**
  * Return the bpmn:MultiInstanceLoopCharacteristics of an element, or null.
@@ -736,7 +736,7 @@ function getMultiInstanceLoopCharacteristics(element) {
 }
 function getZenbpmLoopCharacteristics(element) {
     const lc = getMultiInstanceLoopCharacteristics(element);
-    return lc ? getExtensionElement(lc, TYPE$1) : undefined;
+    return lc ? getExtensionElement(lc, TYPE$2) : undefined;
 }
 // ─── entry components ────────────────────────────────────────────────────────
 /**
@@ -750,7 +750,7 @@ function InputCollectionEntry(props) {
     const debounce = useService('debounceInput');
     const lc = getMultiInstanceLoopCharacteristics(element);
     const getValue = () => getZenbpmLoopCharacteristics(element)?.inputCollection ?? '';
-    const setValue = (value) => updateExtensionElementProps(element, lc, TYPE$1, { inputCollection: value }, bpmnFactory, commandStack);
+    const setValue = (value) => updateExtensionElementProps(element, lc, TYPE$2, { inputCollection: value }, bpmnFactory, commandStack);
     return FeelEntry({
         element,
         id: 'zenbpm-multiInstance-inputCollection',
@@ -772,7 +772,7 @@ function InputElementEntry(props) {
     const debounce = useService('debounceInput');
     const lc = getMultiInstanceLoopCharacteristics(element);
     const getValue = () => getZenbpmLoopCharacteristics(element)?.inputElement ?? '';
-    const setValue = (value) => updateExtensionElementProps(element, lc, TYPE$1, { inputElement: value }, bpmnFactory, commandStack);
+    const setValue = (value) => updateExtensionElementProps(element, lc, TYPE$2, { inputElement: value }, bpmnFactory, commandStack);
     return TextFieldEntry({
         element,
         id: 'zenbpm-multiInstance-inputElement',
@@ -793,7 +793,7 @@ function OutputCollectionEntry(props) {
     const debounce = useService('debounceInput');
     const lc = getMultiInstanceLoopCharacteristics(element);
     const getValue = () => getZenbpmLoopCharacteristics(element)?.outputCollection ?? '';
-    const setValue = (value) => updateExtensionElementProps(element, lc, TYPE$1, { outputCollection: value }, bpmnFactory, commandStack);
+    const setValue = (value) => updateExtensionElementProps(element, lc, TYPE$2, { outputCollection: value }, bpmnFactory, commandStack);
     return TextFieldEntry({
         element,
         id: 'zenbpm-multiInstance-outputCollection',
@@ -814,7 +814,7 @@ function OutputElementEntry(props) {
     const debounce = useService('debounceInput');
     const lc = getMultiInstanceLoopCharacteristics(element);
     const getValue = () => getZenbpmLoopCharacteristics(element)?.outputElement ?? '';
-    const setValue = (value) => updateExtensionElementProps(element, lc, TYPE$1, { outputElement: value }, bpmnFactory, commandStack);
+    const setValue = (value) => updateExtensionElementProps(element, lc, TYPE$2, { outputElement: value }, bpmnFactory, commandStack);
     return FeelEntry({
         element,
         id: 'zenbpm-multiInstance-outputElement',
@@ -1111,7 +1111,7 @@ function ConditionExpressionProps(element) {
     ];
 }
 
-const TYPE = 'zenbpm:Subscription';
+const TYPE$1 = 'zenbpm:Subscription';
 const ID = 'zenbpm-messageSubscriptionCorrelationKey';
 // ─── helpers ─────────────────────────────────────────────────────────────────
 /**
@@ -1183,13 +1183,13 @@ function MessageSubscriptionCorrelationKeyEntry(props) {
     // message after the entry is already mounted, so guard every access.
     const message = getMessage(element);
     const getValue = () => message
-        ? getFeelValue(getExtensionElement(message, TYPE)?.correlationKey)
+        ? getFeelValue(getExtensionElement(message, TYPE$1)?.correlationKey)
         : '';
     const setValue = (value) => {
         if (!message) {
             return;
         }
-        updateExtensionElementProps(element, message, TYPE, { correlationKey: value }, bpmnFactory, commandStack);
+        updateExtensionElementProps(element, message, TYPE$1, { correlationKey: value }, bpmnFactory, commandStack);
     };
     return FeelEntry({
         element,
@@ -1584,6 +1584,79 @@ function ExtensionPropertiesGroup(element, injector) {
     };
 }
 
+const TYPE = 'zenbpm:In';
+const OVERRIDE_ID = 'zenbpm-businessKey-override';
+const EXPRESSION_ID = 'zenbpm-businessKey-expression';
+function getBusinessKeyInput(element) {
+    return getExtensionElement(element.businessObject, TYPE);
+}
+function OverrideBusinessKeyEntry(props) {
+    const { element } = props;
+    const commandStack = useService('commandStack');
+    const bpmnFactory = useService('bpmnFactory');
+    const translate = useService('translate');
+    const businessObject = element.businessObject;
+    const getValue = () => !!getBusinessKeyInput(element);
+    const setValue = (value) => {
+        if (value) {
+            updateExtensionElementProps(element, businessObject, TYPE, { businessKey: '' }, bpmnFactory, commandStack);
+        }
+        else {
+            removeExtensionElement(element, businessObject, TYPE, commandStack);
+        }
+    };
+    return CheckboxEntry({
+        element,
+        id: OVERRIDE_ID,
+        label: translate('Override business key'),
+        getValue,
+        setValue,
+    });
+}
+function BusinessKeyExpressionEntry(props) {
+    const { element } = props;
+    const commandStack = useService('commandStack');
+    const bpmnFactory = useService('bpmnFactory');
+    const translate = useService('translate');
+    const debounce = useService('debounceInput');
+    const businessObject = element.businessObject;
+    const getValue = () => getFeelValue(getBusinessKeyInput(element)?.businessKey);
+    const setValue = (value) => {
+        if (!getBusinessKeyInput(element)) {
+            return;
+        }
+        updateExtensionElementProps(element, businessObject, TYPE, { businessKey: value }, bpmnFactory, commandStack);
+    };
+    const disabled = !getBusinessKeyInput(element);
+    // FeelEntry initializes its editor's read-only state on mount. Recreate it
+    // when the override changes so the editor is immediately editable/read-only.
+    return createElement(FeelEntry, {
+        key: disabled ? 'disabled' : 'enabled',
+        element,
+        id: EXPRESSION_ID,
+        label: translate('Business key expression'),
+        feel: 'required',
+        getValue,
+        setValue,
+        debounce,
+        disabled,
+    });
+}
+function BusinessKeyProps(element) {
+    return [
+        {
+            id: OVERRIDE_ID,
+            component: OverrideBusinessKeyEntry,
+            isEdited: isCheckboxEntryEdited,
+        },
+        {
+            id: EXPRESSION_ID,
+            component: BusinessKeyExpressionEntry,
+            isEdited: isFeelEntryEdited,
+        },
+    ];
+}
+
 const PROVIDER_PRIORITY = 500;
 class ZenBpmPropertiesProvider {
     static $inject = ['propertiesPanel', 'injector'];
@@ -1635,6 +1708,17 @@ class ZenBpmPropertiesProvider {
                     id: 'zenbpm-calledElement',
                     label: translate('Called element'),
                     entries: CalledElementProps(element),
+                    component: Group,
+                });
+            }
+            // ── Business key ─────────────────────────────────────────────────────
+            const isChildProcessActivity = element.type === 'bpmn:CallActivity' ||
+                (element.type === 'bpmn:SubProcess' && !element.businessObject.triggeredByEvent);
+            if (isChildProcessActivity) {
+                groups.push({
+                    id: 'zenbpm-businessKey',
+                    label: translate('Business key'),
+                    entries: BusinessKeyProps(),
                     component: Group,
                 });
             }
