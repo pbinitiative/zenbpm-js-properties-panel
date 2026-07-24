@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:zenbpm="http://zenbpm.pbinitiative.org/1.0"
+                  id="Definitions_1"
+                  targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1" isExecutable="true">
+    <bpmn:callActivity id="CallActivity_Configured">
+      <bpmn:extensionElements>
+        <zenbpm:calledElement processId="ChildProcess" />
+        <zenbpm:in businessKey="=processBusinessKey" />
+      </bpmn:extensionElements>
+    </bpmn:callActivity>
+    <bpmn:subProcess id="SubProcess_Expanded">
+      <bpmn:startEvent id="SubProcess_Start" />
+    </bpmn:subProcess>
+    <bpmn:subProcess id="SubProcess_Collapsed">
+      <bpmn:extensionElements>
+        <zenbpm:in businessKey="" />
+      </bpmn:extensionElements>
+    </bpmn:subProcess>
+    <bpmn:serviceTask id="ServiceTask_1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="CallActivity_Configured_di" bpmnElement="CallActivity_Configured">
+        <dc:Bounds x="120" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SubProcess_Expanded_di" bpmnElement="SubProcess_Expanded" isExpanded="true">
+        <dc:Bounds x="260" y="80" width="300" height="160" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SubProcess_Start_di" bpmnElement="SubProcess_Start">
+        <dc:Bounds x="300" y="140" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SubProcess_Collapsed_di" bpmnElement="SubProcess_Collapsed" isExpanded="false">
+        <dc:Bounds x="600" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_1_di" bpmnElement="ServiceTask_1">
+        <dc:Bounds x="740" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
