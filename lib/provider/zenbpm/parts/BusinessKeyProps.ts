@@ -87,7 +87,7 @@ function BusinessKeyExpressionEntry(props: any) {
     element,
     id: EXPRESSION_ID,
     label: translate('Business key expression'),
-    description: translate('Non-empty business keys use FEEL and must start with "=". Invalid expressions or non-string results create an incident.'),
+    description: translate('Example: userId + "-" + orderId. Invalid expressions or non-string results create an incident.'),
     feel: 'required',
     getValue,
     setValue,
