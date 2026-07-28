@@ -11,7 +11,6 @@ import {
   removeExtensionElement,
   updateExtensionElementProps,
 } from '../../../util/ExtensionElementsUtil';
-import { getFeelValue } from '../../../util/FeelUtil';
 
 const TYPE = 'zenbpm:In';
 const OVERRIDE_ID = 'zenbpm-businessKey-override';
@@ -21,6 +20,10 @@ export function getBusinessKeyInput(element: any): any {
   return getExtensionElement(element.businessObject, TYPE);
 }
 
+function hasBusinessKeyOverride(element: any): boolean {
+  return getBusinessKeyInput(element)?.businessKey !== undefined;
+}
+
 function OverrideBusinessKeyEntry(props: any) {
   const { element } = props;
   const commandStack = useService('commandStack');
@@ -28,7 +31,7 @@ function OverrideBusinessKeyEntry(props: any) {
   const translate = useService('translate');
   const businessObject = element.businessObject;
 
-  const getValue = () => !!getBusinessKeyInput(element);
+  const getValue = () => hasBusinessKeyOverride(element);
   const setValue = (value: boolean) => {
     if (value) {
       updateExtensionElementProps(
@@ -61,35 +64,34 @@ function BusinessKeyExpressionEntry(props: any) {
   const debounce = useService('debounceInput');
   const businessObject = element.businessObject;
 
-  const getValue = () => getFeelValue(getBusinessKeyInput(element)?.businessKey);
-  const setValue = (value: string) => {
-    if (!getBusinessKeyInput(element)) {
+  if (!hasBusinessKeyOverride(element)) {
+    return null;
+  }
+
+  const getValue = () => getBusinessKeyInput(element)?.businessKey ?? '';
+  const setValue = (value: string | undefined) => {
+    if (!hasBusinessKeyOverride(element)) {
       return;
     }
     updateExtensionElementProps(
       element,
       businessObject,
       TYPE,
-      { businessKey: value },
+      { businessKey: value ?? '' },
       bpmnFactory,
       commandStack,
     );
   };
 
-  const disabled = !getBusinessKeyInput(element);
-
-  // FeelEntry initializes its editor's read-only state on mount. Recreate it
-  // when the override changes so the editor is immediately editable/read-only.
   return createElement(FeelEntry, {
-    key: disabled ? 'disabled' : 'enabled',
     element,
     id: EXPRESSION_ID,
     label: translate('Business key expression'),
+    description: translate('Non-empty business keys use FEEL and must start with "=". Invalid expressions or non-string results create an incident.'),
     feel: 'required',
     getValue,
     setValue,
     debounce,
-    disabled,
   });
 }
 

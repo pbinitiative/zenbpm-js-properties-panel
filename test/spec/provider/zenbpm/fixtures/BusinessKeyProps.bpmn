@@ -12,12 +12,17 @@
         <zenbpm:in businessKey="=processBusinessKey" />
       </bpmn:extensionElements>
     </bpmn:callActivity>
+    <bpmn:callActivity id="CallActivity_Inherit">
+      <bpmn:extensionElements>
+        <zenbpm:in />
+      </bpmn:extensionElements>
+    </bpmn:callActivity>
     <bpmn:subProcess id="SubProcess_Expanded">
       <bpmn:startEvent id="SubProcess_Start" />
     </bpmn:subProcess>
     <bpmn:subProcess id="SubProcess_Collapsed">
       <bpmn:extensionElements>
-        <zenbpm:in businessKey="" />
+        <zenbpm:in businessKey="=businessPrefix + &quot;-&quot; + customerId" />
       </bpmn:extensionElements>
     </bpmn:subProcess>
     <bpmn:serviceTask id="ServiceTask_1" />
@@ -26,6 +31,9 @@
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
       <bpmndi:BPMNShape id="CallActivity_Configured_di" bpmnElement="CallActivity_Configured">
         <dc:Bounds x="120" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CallActivity_Inherit_di" bpmnElement="CallActivity_Inherit">
+        <dc:Bounds x="120" y="260" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="SubProcess_Expanded_di" bpmnElement="SubProcess_Expanded" isExpanded="true">
         <dc:Bounds x="260" y="80" width="300" height="160" />

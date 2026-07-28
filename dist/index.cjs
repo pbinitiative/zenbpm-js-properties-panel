@@ -1592,13 +1592,16 @@ const EXPRESSION_ID = 'zenbpm-businessKey-expression';
 function getBusinessKeyInput(element) {
     return getExtensionElement(element.businessObject, TYPE);
 }
+function hasBusinessKeyOverride(element) {
+    return getBusinessKeyInput(element)?.businessKey !== undefined;
+}
 function OverrideBusinessKeyEntry(props) {
     const { element } = props;
     const commandStack = bpmnJsPropertiesPanel.useService('commandStack');
     const bpmnFactory = bpmnJsPropertiesPanel.useService('bpmnFactory');
     const translate = bpmnJsPropertiesPanel.useService('translate');
     const businessObject = element.businessObject;
-    const getValue = () => !!getBusinessKeyInput(element);
+    const getValue = () => hasBusinessKeyOverride(element);
     const setValue = (value) => {
         if (value) {
             updateExtensionElementProps(element, businessObject, TYPE, { businessKey: '' }, bpmnFactory, commandStack);
@@ -1622,26 +1625,25 @@ function BusinessKeyExpressionEntry(props) {
     const translate = bpmnJsPropertiesPanel.useService('translate');
     const debounce = bpmnJsPropertiesPanel.useService('debounceInput');
     const businessObject = element.businessObject;
-    const getValue = () => getFeelValue(getBusinessKeyInput(element)?.businessKey);
+    if (!hasBusinessKeyOverride(element)) {
+        return null;
+    }
+    const getValue = () => getBusinessKeyInput(element)?.businessKey ?? '';
     const setValue = (value) => {
-        if (!getBusinessKeyInput(element)) {
+        if (!hasBusinessKeyOverride(element)) {
             return;
         }
-        updateExtensionElementProps(element, businessObject, TYPE, { businessKey: value }, bpmnFactory, commandStack);
+        updateExtensionElementProps(element, businessObject, TYPE, { businessKey: value ?? '' }, bpmnFactory, commandStack);
     };
-    const disabled = !getBusinessKeyInput(element);
-    // FeelEntry initializes its editor's read-only state on mount. Recreate it
-    // when the override changes so the editor is immediately editable/read-only.
     return preact.createElement(propertiesPanel.FeelEntry, {
-        key: disabled ? 'disabled' : 'enabled',
         element,
         id: EXPRESSION_ID,
         label: translate('Business key expression'),
+        description: translate('Non-empty business keys use FEEL and must start with "=". Invalid expressions or non-string results create an incident.'),
         feel: 'required',
         getValue,
         setValue,
         debounce,
-        disabled,
     });
 }
 function BusinessKeyProps(element) {
