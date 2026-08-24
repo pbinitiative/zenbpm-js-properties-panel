@@ -16,6 +16,7 @@ It reads and writes ZenBPM extension elements (defined by [`@pbinitiative/zenbpm
 | Service / Script / Send Task | **Task definition** | Type, Retries |
 | Call Activity | **Called element** | Process ID, Binding (latest/deployment/version tag), Version tag*, Propagate all child variables, Propagate all parent variables |
 | Call Activity / Sub-process | **Business key** | Override business key, Business key expression (FEEL) |
+| User Task | **Task definition** | Type |
 | User Task | **Assignment** | Assignee (FEEL), Candidate groups (FEEL), Candidate users (FEEL), Due date (FEEL), Follow-up date (FEEL), Priority (FEEL-optional) |
 | User Task | **Zen Form** | *Design Form* button (opens form designer) |
 | All applicable tasks + Sub-process + Events | **Input mapping** | Source expression (FEEL), Target variable |

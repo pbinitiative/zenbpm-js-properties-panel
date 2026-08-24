@@ -19,8 +19,8 @@ exposing a field that the engine ignores is dead UI.
 | `TCalledElement.VersionTag` | `versionTag` attr | `zenbpm:CalledElement` | ✅ `Called element` group |
 | `TCalledDecision.DecisionId` | `decisionId` attr | `zenbpm:CalledDecision` | ✅ `Called decision` group |
 | `TCalledDecision.ResultVariable` | `resultVariable` attr | `zenbpm:CalledDecision` | ✅ `Called decision` group |
-| `TTaskDefinition.Type` | `type` attr | `zenbpm:TaskDefinition` | ✅ `Task definition` group |
-| `TTaskDefinition.Retries` | `retries` attr | `zenbpm:TaskDefinition` | ✅ `Task definition` group |
+| `TTaskDefinition.Type` | `type` attr | `zenbpm:TaskDefinition` | ✅ `Task definition` group on worker tasks and User Tasks |
+| `TTaskDefinition.Retries` | `retries` attr | `zenbpm:TaskDefinition` | ✅ `Task definition` group on worker tasks only |
 | `TSubscription.CorrelationKey` | `correlationKey` attr | `zenbpm:Subscription` | ✅ `Message` group (catch/boundary/event-sub-process start) |
 | `TLoopCharacteristics.*` | `inputCollection` / `inputElement` / `outputCollection` / `outputElement` | `zenbpm:LoopCharacteristics` | ✅ `Multi-instance` group |
 | `bpmn:TimerEventDefinition` (ISO-8601) | `timeDate` / `timeDuration` / `timeCycle` | (BPMN native) | ✅ bpmn-js default timer group |

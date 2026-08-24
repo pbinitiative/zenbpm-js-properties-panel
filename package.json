@@ -76,7 +76,7 @@
     "webpack": "^5.107.2"
   },
   "dependencies": {
-    "@pbinitiative/zenbpm-bpmn-moddle": "0.2.1"
+    "@pbinitiative/zenbpm-bpmn-moddle": "file:../zenbpm-bpmn-moddle"
   },
   "peerDependencies": {
     "@bpmn-io/properties-panel": ">= 3.7",

@@ -328,8 +328,8 @@ function switchExtensionElement(element, bo, removeType, createType, bpmnFactory
     commandStack.execute('properties-panel.multi-command-executor', commands);
 }
 
-// bpmn:ServiceTask, bpmn:BusinessRuleTask, bpmn:ScriptTask, bpmn:SendTask all
-// use zenbpm:TaskDefinition to declare the job worker type & retry count.
+// Service-task-like elements use zenbpm:TaskDefinition for worker type and
+// retries. User Tasks use the same extension for the configurable job type only.
 const SERVICE_TASK_TYPES = new Set([
     'bpmn:ServiceTask',
     'bpmn:BusinessRuleTask',
@@ -364,10 +364,17 @@ function RetriesEntry(props) {
 }
 // ─── exported entry list ─────────────────────────────────────────────────────
 function TaskDefinitionProps(element) {
+    const typeEntry = {
+        id: 'zenbpm-taskDef-type',
+        component: TypeEntry,
+        isEdited: propertiesPanel.isTextFieldEntryEdited,
+    };
+    if (element.type === 'bpmn:UserTask')
+        return [typeEntry];
     if (!isServiceTaskLike(element))
         return [];
     return [
-        { id: 'zenbpm-taskDef-type', component: TypeEntry, isEdited: propertiesPanel.isTextFieldEntryEdited },
+        typeEntry,
         { id: 'zenbpm-taskDef-retries', component: RetriesEntry, isEdited: propertiesPanel.isTextFieldEntryEdited },
     ];
 }
@@ -1639,7 +1646,7 @@ function BusinessKeyExpressionEntry(props) {
         element,
         id: EXPRESSION_ID,
         label: translate('Business key expression'),
-        description: translate('Non-empty business keys use FEEL and must start with "=". Invalid expressions or non-string results create an incident.'),
+        description: translate('Example: userId + "-" + orderId. Invalid expressions or non-string results create an incident.'),
         feel: 'required',
         getValue,
         setValue,
@@ -1685,9 +1692,10 @@ class ZenBpmPropertiesProvider {
                 });
             }
             // ── Task Definition ──────────────────────────────────────────────────
-            // Shown for all service-task-like types except BusinessRuleTask, where it
-            // is only shown when the implementation is set to Job worker.
-            const showTaskDefinition = (isServiceTaskLike(element) && element.type !== 'bpmn:BusinessRuleTask') ||
+            // Shown for User Tasks and all service-task-like types except
+            // BusinessRuleTask, where it is only shown for Job worker implementation.
+            const showTaskDefinition = element.type === 'bpmn:UserTask' ||
+                (isServiceTaskLike(element) && element.type !== 'bpmn:BusinessRuleTask') ||
                 (element.type === 'bpmn:BusinessRuleTask' && getImplementationType(element) === 'jobWorker');
             if (showTaskDefinition) {
                 groups.push({

@@ -45,9 +45,10 @@ export class ZenBpmPropertiesProvider {
       }
 
       // ── Task Definition ──────────────────────────────────────────────────
-      // Shown for all service-task-like types except BusinessRuleTask, where it
-      // is only shown when the implementation is set to Job worker.
+      // Shown for User Tasks and all service-task-like types except
+      // BusinessRuleTask, where it is only shown for Job worker implementation.
       const showTaskDefinition =
+        element.type === 'bpmn:UserTask' ||
         (isServiceTaskLike(element) && element.type !== 'bpmn:BusinessRuleTask') ||
         (element.type === 'bpmn:BusinessRuleTask' && getImplementationType(element) === 'jobWorker');
 
