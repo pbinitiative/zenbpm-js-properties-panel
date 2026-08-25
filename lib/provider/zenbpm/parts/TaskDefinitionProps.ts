@@ -5,8 +5,8 @@ import {
 import { useService } from 'bpmn-js-properties-panel';
 import { getExtensionElement, updateExtensionElementProps } from '../../../util/ExtensionElementsUtil';
 
-// bpmn:ServiceTask, bpmn:BusinessRuleTask, bpmn:ScriptTask, bpmn:SendTask all
-// use zenbpm:TaskDefinition to declare the job worker type & retry count.
+// Service-task-like elements use zenbpm:TaskDefinition for worker type and
+// retries. User Tasks use the same extension for the configurable job type only.
 const SERVICE_TASK_TYPES = new Set([
   'bpmn:ServiceTask',
   'bpmn:BusinessRuleTask',
@@ -57,10 +57,17 @@ function RetriesEntry(props: any) {
 // ─── exported entry list ─────────────────────────────────────────────────────
 
 export function TaskDefinitionProps(element: any) {
+  const typeEntry = {
+    id: 'zenbpm-taskDef-type',
+    component: TypeEntry,
+    isEdited: isTextFieldEntryEdited,
+  };
+
+  if (element.type === 'bpmn:UserTask') return [typeEntry];
   if (!isServiceTaskLike(element)) return [];
 
   return [
-    { id: 'zenbpm-taskDef-type',    component: TypeEntry,    isEdited: isTextFieldEntryEdited },
+    typeEntry,
     { id: 'zenbpm-taskDef-retries', component: RetriesEntry, isEdited: isTextFieldEntryEdited },
   ];
 }
