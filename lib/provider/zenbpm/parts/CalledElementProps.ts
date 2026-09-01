@@ -1,8 +1,6 @@
 import {
   TextFieldEntry,
-  ToggleSwitchEntry,
   isTextFieldEntryEdited,
-  isToggleSwitchEntryEdited,
 } from '@bpmn-io/properties-panel';
 import { useService } from 'bpmn-js-properties-panel';
 import { getExtensionElement, updateExtensionElementProps } from '../../../util/ExtensionElementsUtil';
@@ -33,36 +31,6 @@ function ProcessIdEntry(props: any) {
   return TextFieldEntry({ element, id: `${ID}-processId`, label: translate('Process ID'), getValue, setValue, debounce });
 }
 
-function PropagateAllChildVarsEntry(props: any) {
-  const { element } = props;
-  const commandStack = useService('commandStack');
-  const bpmnFactory  = useService('bpmnFactory');
-  const translate    = useService('translate');
-
-  const bo = element.businessObject;
-
-  const getValue = () => getExtensionElement(bo, TYPE)?.propagateAllChildVariables ?? false;
-  const setValue = (value: boolean) =>
-    updateExtensionElementProps(element, bo, TYPE, { propagateAllChildVariables: value }, bpmnFactory, commandStack);
-
-  return ToggleSwitchEntry({ element, id: `${ID}-propagateAllChildVariables`, label: translate('Propagate all child variables'), getValue, setValue });
-}
-
-function PropagateAllParentVarsEntry(props: any) {
-  const { element } = props;
-  const commandStack = useService('commandStack');
-  const bpmnFactory  = useService('bpmnFactory');
-  const translate    = useService('translate');
-
-  const bo = element.businessObject;
-
-  const getValue = () => getExtensionElement(bo, TYPE)?.propagateAllParentVariables ?? true;
-  const setValue = (value: boolean) =>
-    updateExtensionElementProps(element, bo, TYPE, { propagateAllParentVariables: value }, bpmnFactory, commandStack);
-
-  return ToggleSwitchEntry({ element, id: `${ID}-propagateAllParentVariables`, label: translate('Propagate all parent variables'), getValue, setValue });
-}
-
 // ─── exported entry list ─────────────────────────────────────────────────────
 
 export function CalledElementProps(element: any) {
@@ -71,7 +39,5 @@ export function CalledElementProps(element: any) {
   return [
     { id: `${ID}-processId`,                   component: ProcessIdEntry,              isEdited: isTextFieldEntryEdited    },
     ...bindingEntries(ID, BindingTypeEntry, BindingVersionTagEntry, element, TYPE),
-    { id: `${ID}-propagateAllChildVariables`,  component: PropagateAllChildVarsEntry,  isEdited: isToggleSwitchEntryEdited },
-    { id: `${ID}-propagateAllParentVariables`, component: PropagateAllParentVarsEntry, isEdited: isToggleSwitchEntryEdited },
   ];
 }

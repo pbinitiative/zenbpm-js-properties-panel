@@ -5,8 +5,7 @@ import { getExtensionElement, updateExtensionElementProps } from '../../../util/
 // ─── constants ───────────────────────────────────────────────────────────────
 
 export const BINDING_OPTIONS = [
-  { value: 'latest',     label: 'Latest' },
-  { value: 'deployment', label: 'Deployment' },
+  { value: 'latest', label: 'Latest' },
   { value: 'versionTag', label: 'Version tag' },
 ];
 
@@ -21,13 +20,13 @@ export function makeBindingTypeEntry(idPrefix: string, extensionType: string) {
   return function BindingTypeEntry(props: any) {
     const { element } = props;
     const commandStack = useService('commandStack');
-    const bpmnFactory  = useService('bpmnFactory');
-    const translate    = useService('translate');
+    const bpmnFactory = useService('bpmnFactory');
+    const translate = useService('translate');
 
     const bo = element.businessObject;
 
-    const getValue   = () => getExtensionElement(bo, extensionType)?.bindingType ?? 'latest';
-    const setValue   = (value: string) =>
+    const getValue = () => getExtensionElement(bo, extensionType)?.bindingType ?? 'latest';
+    const setValue = (value: string) =>
       updateExtensionElementProps(element, bo, extensionType, { bindingType: value }, bpmnFactory, commandStack);
     const getOptions = () => BINDING_OPTIONS.map(({ value, label }) => ({ value, label: translate(label) }));
 
@@ -39,9 +38,9 @@ export function makeVersionTagEntry(idPrefix: string, extensionType: string) {
   return function VersionTagEntry(props: any) {
     const { element } = props;
     const commandStack = useService('commandStack');
-    const bpmnFactory  = useService('bpmnFactory');
-    const translate    = useService('translate');
-    const debounce     = useService('debounceInput');
+    const bpmnFactory = useService('bpmnFactory');
+    const translate = useService('translate');
+    const debounce = useService('debounceInput');
 
     const bo = element.businessObject;
 

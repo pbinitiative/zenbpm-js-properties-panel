@@ -518,7 +518,6 @@ function AssignmentDefinitionProps(element) {
 // ─── constants ───────────────────────────────────────────────────────────────
 const BINDING_OPTIONS = [
     { value: 'latest', label: 'Latest' },
-    { value: 'deployment', label: 'Deployment' },
     { value: 'versionTag', label: 'Version tag' },
 ];
 // ─── entry component factories ───────────────────────────────────────────────
@@ -581,26 +580,6 @@ function ProcessIdEntry(props) {
     const setValue = (value) => updateExtensionElementProps(element, bo, TYPE$4, { processId: value }, bpmnFactory, commandStack);
     return propertiesPanel.TextFieldEntry({ element, id: `${ID$2}-processId`, label: translate('Process ID'), getValue, setValue, debounce });
 }
-function PropagateAllChildVarsEntry(props) {
-    const { element } = props;
-    const commandStack = bpmnJsPropertiesPanel.useService('commandStack');
-    const bpmnFactory = bpmnJsPropertiesPanel.useService('bpmnFactory');
-    const translate = bpmnJsPropertiesPanel.useService('translate');
-    const bo = element.businessObject;
-    const getValue = () => getExtensionElement(bo, TYPE$4)?.propagateAllChildVariables ?? false;
-    const setValue = (value) => updateExtensionElementProps(element, bo, TYPE$4, { propagateAllChildVariables: value }, bpmnFactory, commandStack);
-    return propertiesPanel.ToggleSwitchEntry({ element, id: `${ID$2}-propagateAllChildVariables`, label: translate('Propagate all child variables'), getValue, setValue });
-}
-function PropagateAllParentVarsEntry(props) {
-    const { element } = props;
-    const commandStack = bpmnJsPropertiesPanel.useService('commandStack');
-    const bpmnFactory = bpmnJsPropertiesPanel.useService('bpmnFactory');
-    const translate = bpmnJsPropertiesPanel.useService('translate');
-    const bo = element.businessObject;
-    const getValue = () => getExtensionElement(bo, TYPE$4)?.propagateAllParentVariables ?? true;
-    const setValue = (value) => updateExtensionElementProps(element, bo, TYPE$4, { propagateAllParentVariables: value }, bpmnFactory, commandStack);
-    return propertiesPanel.ToggleSwitchEntry({ element, id: `${ID$2}-propagateAllParentVariables`, label: translate('Propagate all parent variables'), getValue, setValue });
-}
 // ─── exported entry list ─────────────────────────────────────────────────────
 function CalledElementProps(element) {
     if (element.type !== 'bpmn:CallActivity')
@@ -608,8 +587,6 @@ function CalledElementProps(element) {
     return [
         { id: `${ID$2}-processId`, component: ProcessIdEntry, isEdited: propertiesPanel.isTextFieldEntryEdited },
         ...bindingEntries(ID$2, BindingTypeEntry$1, BindingVersionTagEntry$1, element, TYPE$4),
-        { id: `${ID$2}-propagateAllChildVariables`, component: PropagateAllChildVarsEntry, isEdited: propertiesPanel.isToggleSwitchEntryEdited },
-        { id: `${ID$2}-propagateAllParentVariables`, component: PropagateAllParentVarsEntry, isEdited: propertiesPanel.isToggleSwitchEntryEdited },
     ];
 }
 
@@ -1669,6 +1646,54 @@ function BusinessKeyProps(element) {
 }
 
 const PROVIDER_PRIORITY = 500;
+/**
+ * Drop extension attributes which are no longer supported by ZenBPM when a
+ * legacy diagram is imported. The current moddle descriptor retains unknown
+ * attributes in `$attrs`, so they would otherwise survive a save unchanged.
+ * Use the command stack so hosts are notified that the imported diagram needs
+ * to be saved and the cleanup remains undoable.
+ */
+function removeUnsupportedPropertiesOnImport(injector) {
+    const eventBus = injector.get('eventBus');
+    eventBus.on('import.done', ({ error }) => {
+        if (error)
+            return;
+        const commandStack = injector.get('commandStack');
+        const elementRegistry = injector.get('elementRegistry');
+        const commands = [];
+        for (const element of elementRegistry.getAll()) {
+            const extensions = element.businessObject?.extensionElements?.values || [];
+            for (const extension of extensions) {
+                const properties = {};
+                if (extension.$type === 'zenbpm:CalledElement') {
+                    if (extension.bindingType === 'deployment') {
+                        properties.bindingType = undefined;
+                    }
+                    for (const property of [
+                        'propagateAllChildVariables',
+                        'propagateAllParentVariables',
+                    ]) {
+                        if (Object.prototype.hasOwnProperty.call(extension.$attrs || {}, property)) {
+                            properties[property] = undefined;
+                        }
+                    }
+                }
+                else if (extension.$type === 'zenbpm:CalledDecision' && extension.bindingType === 'deployment') {
+                    properties.bindingType = undefined;
+                }
+                if (Object.keys(properties).length) {
+                    commands.push({
+                        cmd: 'element.updateModdleProperties',
+                        context: { element, moddleElement: extension, properties },
+                    });
+                }
+            }
+        }
+        if (commands.length) {
+            commandStack.execute('properties-panel.multi-command-executor', commands);
+        }
+    });
+}
 class ZenBpmPropertiesProvider {
     static $inject = ['propertiesPanel', 'injector'];
     _injector;
@@ -1678,6 +1703,7 @@ class ZenBpmPropertiesProvider {
         // When the Zen Form editor is submitted, scan form field variables
         // and automatically add them to the output mapping.
         setupFormSaveHandler(injector);
+        removeUnsupportedPropertiesOnImport(injector);
     }
     getGroups(element) {
         return (groups) => {

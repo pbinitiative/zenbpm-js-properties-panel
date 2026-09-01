@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:zenbpm="http://zenbpm.pbinitiative.org/1.0"
+                  id="Definitions_1"
+                  targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1" isExecutable="true">
+    <bpmn:callActivity id="CallActivity_1">
+      <bpmn:extensionElements>
+        <zenbpm:calledElement
+          processId="ChildProcess"
+          bindingType="deployment"
+          propagateAllChildVariables="true"
+          propagateAllParentVariables="false" />
+      </bpmn:extensionElements>
+    </bpmn:callActivity>
+    <bpmn:businessRuleTask id="BusinessRuleTask_1">
+      <bpmn:extensionElements>
+        <zenbpm:calledDecision decisionId="EvaluateDecision" bindingType="deployment" />
+      </bpmn:extensionElements>
+    </bpmn:businessRuleTask>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="CallActivity_1_di" bpmnElement="CallActivity_1">
+        <dc:Bounds x="100" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BusinessRuleTask_1_di" bpmnElement="BusinessRuleTask_1">
+        <dc:Bounds x="260" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
