@@ -16,6 +16,61 @@ import { BusinessKeyProps } from './parts/BusinessKeyProps';
 
 const PROVIDER_PRIORITY = 500;
 
+/**
+ * Drop extension attributes which are no longer supported by ZenBPM when a
+ * legacy diagram is imported. The current moddle descriptor retains unknown
+ * attributes in `$attrs`, so they would otherwise survive a save unchanged.
+ * Use the command stack so hosts are notified that the imported diagram needs
+ * to be saved and the cleanup remains undoable.
+ */
+function removeUnsupportedPropertiesOnImport(injector: any) {
+  const eventBus = injector.get('eventBus');
+
+  eventBus.on('import.done', ({ error }: any) => {
+    if (error) return;
+
+    const commandStack = injector.get('commandStack');
+    const elementRegistry = injector.get('elementRegistry');
+    const commands: any[] = [];
+
+    for (const element of elementRegistry.getAll()) {
+      const extensions = element.businessObject?.extensionElements?.values || [];
+
+      for (const extension of extensions) {
+        const properties: Record<string, undefined> = {};
+
+        if (extension.$type === 'zenbpm:CalledElement') {
+          if (extension.bindingType === 'deployment') {
+            properties.bindingType = undefined;
+          }
+
+          for (const property of [
+            'propagateAllChildVariables',
+            'propagateAllParentVariables',
+          ]) {
+            if (Object.prototype.hasOwnProperty.call(extension.$attrs || {}, property)) {
+              properties[property] = undefined;
+            }
+          }
+        } else if (extension.$type === 'zenbpm:CalledDecision' && extension.bindingType === 'deployment') {
+          properties.bindingType = undefined;
+        }
+
+        if (Object.keys(properties).length) {
+          commands.push({
+            cmd: 'element.updateModdleProperties',
+            context: { element, moddleElement: extension, properties },
+          });
+        }
+      }
+    }
+
+    if (commands.length) {
+      commandStack.execute('properties-panel.multi-command-executor', commands);
+    }
+  });
+}
+
 export class ZenBpmPropertiesProvider {
   static $inject = ['propertiesPanel', 'injector'];
 
@@ -28,6 +83,8 @@ export class ZenBpmPropertiesProvider {
     // When the Zen Form editor is submitted, scan form field variables
     // and automatically add them to the output mapping.
     setupFormSaveHandler(injector);
+
+    removeUnsupportedPropertiesOnImport(injector);
   }
 
   getGroups(element: any) {

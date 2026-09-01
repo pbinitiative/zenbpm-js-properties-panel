@@ -216,7 +216,7 @@ describe('provider/zenbpm - BusinessKeyProps', function() {
     expect(checkbox.checked).to.be.true;
     expect(entry).to.exist;
     expect(description).to.exist;
-    expect(description.textContent).to.equal('Non-empty business keys use FEEL and must start with "=". Invalid expressions or non-string results create an incident.');
+    expect(description.textContent).to.equal('Example: userId + "-" + orderId. Invalid expressions or non-string results create an incident.');
   }));
 
   it('should ignore a stale editor update when the businessKey override is absent', inject(async function(elementRegistry, selection) {

@@ -11,10 +11,10 @@ It reads and writes ZenBPM extension elements (defined by [`@pbinitiative/zenbpm
 | Element | Property group | Fields |
 |---|---|---|
 | Business Rule Task | **Implementation** | Implementation type (DMN decision / Job worker) |
-| Business Rule Task — DMN decision | **Called decision** | Decision ID, Binding (latest/deployment/version tag), Version tag*, Result variable |
+| Business Rule Task — DMN decision | **Called decision** | Decision ID, Binding (latest/version tag), Version tag*, Result variable |
 | Business Rule Task — Job worker | **Task definition** | Type, Retries |
 | Service / Script / Send Task | **Task definition** | Type, Retries |
-| Call Activity | **Called element** | Process ID, Binding (latest/deployment/version tag), Version tag*, Propagate all child variables, Propagate all parent variables |
+| Call Activity | **Called element** | Process ID, Binding (latest/version tag), Version tag* |
 | Call Activity / Sub-process | **Business key** | Override business key, Business key expression (FEEL) |
 | User Task | **Task definition** | Type |
 | User Task | **Assignment** | Assignee (FEEL), Candidate groups (FEEL), Candidate users (FEEL), Due date (FEEL), Follow-up date (FEEL), Priority (FEEL-optional) |
@@ -27,7 +27,7 @@ It reads and writes ZenBPM extension elements (defined by [`@pbinitiative/zenbpm
 | Message catch events (Intermediate Catch Event, Boundary Event), Start Event in event sub-process | **Message** | Subscription correlation key (FEEL) |
 | Any element | **Extension properties** | Key/value pairs (`name` / `value`) |
 
-> \* The **Version tag** text field only appears when you select *Version tag* from the **Binding** dropdown. The Binding dropdown has three options: *Latest* (always use the newest deployed version), *Deployment* (use the version deployed together with this process), and *Version tag* (use a specific version identified by a tag string).
+> \* The **Version tag** text field only appears when you select *Version tag* from the **Binding** dropdown. The Binding dropdown has two options: *Latest* (always use the newest deployed version) and *Version tag* (use a specific version identified by a tag string).
 
 ---
 
