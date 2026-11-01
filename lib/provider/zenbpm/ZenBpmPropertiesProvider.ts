@@ -1,6 +1,6 @@
 import { Group, ListGroup } from '@bpmn-io/properties-panel';
 import { ZenFormProps, setupFormSaveHandler } from './parts/ZenFormProps';
-import { TaskDefinitionProps, isServiceTaskLike } from './parts/TaskDefinitionProps';
+import { TaskDefinitionProps, isMessageThrowEvent, isServiceTaskLike } from './parts/TaskDefinitionProps';
 import { AssignmentDefinitionProps } from './parts/AssignmentDefinitionProps';
 import { CalledElementProps } from './parts/CalledElementProps';
 import { CalledDecisionProps } from './parts/CalledDecisionProps';
@@ -102,8 +102,9 @@ export class ZenBpmPropertiesProvider {
       }
 
       // ── Task Definition ──────────────────────────────────────────────────
-      // Shown for User Tasks and all service-task-like types except
-      // BusinessRuleTask, where it is only shown for Job worker implementation.
+      // Shown for User Tasks and all service-task-like types (including the
+      // Message Intermediate Throw Event) except BusinessRuleTask, where it is
+      // only shown for Job worker implementation.
       const showTaskDefinition =
         element.type === 'bpmn:UserTask' ||
         (isServiceTaskLike(element) && element.type !== 'bpmn:BusinessRuleTask') ||
@@ -185,6 +186,17 @@ export class ZenBpmPropertiesProvider {
             entries: multiInstanceEntries,
             component: Group,
           });
+        }
+      }
+
+      // ── Message (Message Intermediate Throw Event) ──────────────────────
+      // The engine executes a message throw event as a job configured by the
+      // Task definition group above, so the stock 'message' group (global
+      // message reference + name) does not apply and is removed.
+      if (isMessageThrowEvent(element)) {
+        const messageGroupIdx = groups.findIndex((g: any) => g.id === 'message');
+        if (messageGroupIdx !== -1) {
+          groups.splice(messageGroupIdx, 1);
         }
       }
 

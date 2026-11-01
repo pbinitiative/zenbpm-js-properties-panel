@@ -334,8 +334,19 @@ const SERVICE_TASK_TYPES = new Set([
     'bpmn:ScriptTask',
     'bpmn:SendTask',
 ]);
+/**
+ * A Message Intermediate Throw Event is executed by the engine as a job, the
+ * same way as a Send Task, so it is configured via zenbpm:TaskDefinition
+ * rather than via a referenced bpmn:Message.
+ */
+function isMessageThrowEvent(element) {
+    if (element.type !== 'bpmn:IntermediateThrowEvent')
+        return false;
+    const eventDefinitions = element.businessObject?.eventDefinitions || [];
+    return eventDefinitions.some((def) => def.$instanceOf('bpmn:MessageEventDefinition'));
+}
 function isServiceTaskLike(element) {
-    return SERVICE_TASK_TYPES.has(element.type);
+    return SERVICE_TASK_TYPES.has(element.type) || isMessageThrowEvent(element);
 }
 // ─── entry components ────────────────────────────────────────────────────────
 function TypeEntry(props) {
@@ -1716,8 +1727,9 @@ class ZenBpmPropertiesProvider {
                 });
             }
             // ── Task Definition ──────────────────────────────────────────────────
-            // Shown for User Tasks and all service-task-like types except
-            // BusinessRuleTask, where it is only shown for Job worker implementation.
+            // Shown for User Tasks and all service-task-like types (including the
+            // Message Intermediate Throw Event) except BusinessRuleTask, where it is
+            // only shown for Job worker implementation.
             const showTaskDefinition = element.type === 'bpmn:UserTask' ||
                 (isServiceTaskLike(element) && element.type !== 'bpmn:BusinessRuleTask') ||
                 (element.type === 'bpmn:BusinessRuleTask' && getImplementationType(element) === 'jobWorker');
@@ -1792,6 +1804,16 @@ class ZenBpmPropertiesProvider {
                         entries: multiInstanceEntries,
                         component: Group,
                     });
+                }
+            }
+            // ── Message (Message Intermediate Throw Event) ──────────────────────
+            // The engine executes a message throw event as a job configured by the
+            // Task definition group above, so the stock 'message' group (global
+            // message reference + name) does not apply and is removed.
+            if (isMessageThrowEvent(element)) {
+                const messageGroupIdx = groups.findIndex((g) => g.id === 'message');
+                if (messageGroupIdx !== -1) {
+                    groups.splice(messageGroupIdx, 1);
                 }
             }
             // ── Message subscription correlation key ────────────────────────────

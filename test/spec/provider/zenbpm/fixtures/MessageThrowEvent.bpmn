@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:zenbpm="http://zenbpm.pbinitiative.org/1.0"
+                  id="Definitions_1"
+                  targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1" isExecutable="true">
+    <bpmn:intermediateThrowEvent id="MessageThrowEvent_1" name="Notify">
+      <bpmn:messageEventDefinition id="MessageEventDefinition_throw" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:intermediateThrowEvent id="MessageThrowEvent_Configured" name="Notify configured">
+      <bpmn:extensionElements>
+        <zenbpm:taskDefinition type="notify-worker" retries="5" />
+        <zenbpm:ioMapping>
+          <zenbpm:input source="=orderId" target="orderId" />
+        </zenbpm:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_configured" messageRef="Message_1" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:intermediateThrowEvent id="SignalThrowEvent_1" name="Signal">
+      <bpmn:signalEventDefinition id="SignalEventDefinition_1" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:intermediateThrowEvent id="NoneThrowEvent_1" name="None" />
+    <bpmn:intermediateCatchEvent id="MessageCatchEvent_1" name="Wait">
+      <bpmn:messageEventDefinition id="MessageEventDefinition_catch" messageRef="Message_1" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:endEvent id="MessageEndEvent_1" name="End">
+      <bpmn:messageEventDefinition id="MessageEventDefinition_end" messageRef="Message_1" />
+    </bpmn:endEvent>
+    <bpmn:sendTask id="SendTask_1" name="Send" />
+  </bpmn:process>
+  <bpmn:message id="Message_1" name="Message_1" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="MessageThrowEvent_1_di" bpmnElement="MessageThrowEvent_1">
+        <dc:Bounds x="100" y="100" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="MessageThrowEvent_Configured_di" bpmnElement="MessageThrowEvent_Configured">
+        <dc:Bounds x="200" y="100" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SignalThrowEvent_1_di" bpmnElement="SignalThrowEvent_1">
+        <dc:Bounds x="300" y="100" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="NoneThrowEvent_1_di" bpmnElement="NoneThrowEvent_1">
+        <dc:Bounds x="400" y="100" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="MessageCatchEvent_1_di" bpmnElement="MessageCatchEvent_1">
+        <dc:Bounds x="100" y="200" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="MessageEndEvent_1_di" bpmnElement="MessageEndEvent_1">
+        <dc:Bounds x="200" y="200" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SendTask_1_di" bpmnElement="SendTask_1">
+        <dc:Bounds x="300" y="180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
