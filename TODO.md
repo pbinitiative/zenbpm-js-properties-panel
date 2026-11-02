@@ -19,13 +19,13 @@ exposing a field that the engine ignores is dead UI.
 | `TCalledElement.VersionTag` | `versionTag` attr | `zenbpm:CalledElement` | ✅ `Called element` group |
 | `TCalledDecision.DecisionId` | `decisionId` attr | `zenbpm:CalledDecision` | ✅ `Called decision` group |
 | `TCalledDecision.ResultVariable` | `resultVariable` attr | `zenbpm:CalledDecision` | ✅ `Called decision` group |
-| `TTaskDefinition.Type` | `type` attr | `zenbpm:TaskDefinition` | ✅ `Task definition` group on worker tasks and User Tasks |
-| `TTaskDefinition.Retries` | `retries` attr | `zenbpm:TaskDefinition` | ✅ `Task definition` group on worker tasks only |
+| `TTaskDefinition.Type` | `type` attr | `zenbpm:TaskDefinition` | ✅ `Task definition` group on worker tasks (incl. Message Intermediate Throw Event) and User Tasks |
+| `TTaskDefinition.Retries` | `retries` attr | `zenbpm:TaskDefinition` | ✅ `Task definition` group on worker tasks (incl. Message Intermediate Throw Event) only |
 | `TSubscription.CorrelationKey` | `correlationKey` attr | `zenbpm:Subscription` | ✅ `Message` group (catch/boundary/event-sub-process start) |
 | `TLoopCharacteristics.*` | `inputCollection` / `inputElement` / `outputCollection` / `outputElement` | `zenbpm:LoopCharacteristics` | ✅ `Multi-instance` group |
 | `bpmn:TimerEventDefinition` (ISO-8601) | `timeDate` / `timeDuration` / `timeCycle` | (BPMN native) | ✅ bpmn-js default timer group |
 | `bpmn:ErrorEventDefinition` | `errorRef` | (BPMN native) | ✅ bpmn-js default error group |
-| `bpmn:MessageEventDefinition` (name) | `messageRef` | (BPMN native) | ✅ bpmn-js default `Message` group + our `Subscription` entry |
+| `bpmn:MessageEventDefinition` (name) | `messageRef` | (BPMN native) | ✅ bpmn-js default `Message` group + our `Subscription` entry (removed for Message Intermediate Throw Event, which is job-based) |
 | `bpmn:ConditionExpression` (sequence flow) | `conditionExpression` body | (BPMN native) | ✅ `Condition` group (FEEL) |
 | `bpmn:Process` (version tag) | inline `zenbpm:VersionTag` child on Process | `zenbpm:VersionTag` | ✅ appended to `General` group |
 

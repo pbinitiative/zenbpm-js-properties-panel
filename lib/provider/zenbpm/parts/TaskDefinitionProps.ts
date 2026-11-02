@@ -14,8 +14,19 @@ const SERVICE_TASK_TYPES = new Set([
   'bpmn:SendTask',
 ]);
 
+/**
+ * A Message Intermediate Throw Event is executed by the engine as a job, the
+ * same way as a Send Task, so it is configured via zenbpm:TaskDefinition
+ * rather than via a referenced bpmn:Message.
+ */
+export function isMessageThrowEvent(element: any): boolean {
+  if (element.type !== 'bpmn:IntermediateThrowEvent') return false;
+  const eventDefinitions = element.businessObject?.eventDefinitions || [];
+  return eventDefinitions.some((def: any) => def.$instanceOf('bpmn:MessageEventDefinition'));
+}
+
 export function isServiceTaskLike(element: any): boolean {
-  return SERVICE_TASK_TYPES.has(element.type);
+  return SERVICE_TASK_TYPES.has(element.type) || isMessageThrowEvent(element);
 }
 
 // ─── entry components ────────────────────────────────────────────────────────

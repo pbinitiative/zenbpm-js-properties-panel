@@ -13,7 +13,7 @@ It reads and writes ZenBPM extension elements (defined by [`@pbinitiative/zenbpm
 | Business Rule Task | **Implementation** | Implementation type (DMN decision / Job worker) |
 | Business Rule Task — DMN decision | **Called decision** | Decision ID, Binding (latest/version tag), Version tag*, Result variable |
 | Business Rule Task — Job worker | **Task definition** | Type, Retries |
-| Service / Script / Send Task | **Task definition** | Type, Retries |
+| Service / Script / Send Task, Message Intermediate Throw Event | **Task definition** | Type, Retries |
 | Call Activity | **Called element** | Process ID, Binding (latest/version tag), Version tag* |
 | Call Activity / Sub-process | **Business key** | Override business key, Business key expression (FEEL) |
 | User Task | **Task definition** | Type |
@@ -28,6 +28,8 @@ It reads and writes ZenBPM extension elements (defined by [`@pbinitiative/zenbpm
 | Any element | **Extension properties** | Key/value pairs (`name` / `value`) |
 
 > \* The **Version tag** text field only appears when you select *Version tag* from the **Binding** dropdown. The Binding dropdown has two options: *Latest* (always use the newest deployed version) and *Version tag* (use a specific version identified by a tag string).
+
+> A Message Intermediate Throw Event is executed as a job, like a Send Task, so it shows **Task definition** instead of the stock **Message** group (global message reference).
 
 ---
 
