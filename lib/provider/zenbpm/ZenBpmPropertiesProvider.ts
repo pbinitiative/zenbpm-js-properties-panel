@@ -13,6 +13,7 @@ import { CorrelationKeyProps } from './parts/CorrelationKeyProps';
 import { ExtensionPropertiesGroup } from './parts/ExtensionPropertiesProps';
 import { ExampleDataProps } from './parts/ExampleDataProps';
 import { BusinessKeyProps } from './parts/BusinessKeyProps';
+import { ExecutionListenerProps } from './parts/ExecutionListenerProps';
 
 const PROVIDER_PRIORITY = 500;
 
@@ -158,6 +159,17 @@ export class ZenBpmPropertiesProvider {
           id: 'zenbpm-assignmentDefinition',
           label: translate('Assignment'),
           entries: AssignmentDefinitionProps(element),
+          component: Group,
+        });
+      }
+
+      // ── Execution listener (start event directly under the process) ─────
+      const executionListenerEntries = ExecutionListenerProps(element);
+      if (executionListenerEntries.length) {
+        groups.push({
+          id: 'zenbpm-executionListener',
+          label: translate('Execution listener'),
+          entries: executionListenerEntries,
           component: Group,
         });
       }

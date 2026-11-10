@@ -27,6 +27,7 @@ exposing a field that the engine ignores is dead UI.
 | `bpmn:ErrorEventDefinition` | `errorRef` | (BPMN native) | ✅ bpmn-js default error group |
 | `bpmn:MessageEventDefinition` (name) | `messageRef` | (BPMN native) | ✅ bpmn-js default `Message` group + our `Subscription` entry (removed for Message Intermediate Throw Event, which is job-based) |
 | `bpmn:ConditionExpression` (sequence flow) | `conditionExpression` body | (BPMN native) | ✅ `Condition` group (FEEL) |
+| `TExecutionListener.Type / Retries` (start event directly under the process, `eventType="end"`) | `type` / `retries` attrs | `zenbpm:ExecutionListeners` / `zenbpm:ExecutionListener` | ✅ `Execution listener` group; `retryBackoff` has no moddle attribute yet, as for `zenbpm:TaskDefinition` |
 | `bpmn:Process` (version tag) | inline `zenbpm:VersionTag` child on Process | `zenbpm:VersionTag` | ✅ appended to `General` group |
 
 ---

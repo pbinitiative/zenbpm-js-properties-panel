@@ -23,9 +23,12 @@ It reads and writes ZenBPM extension elements (defined by [`@pbinitiative/zenbpm
 | All applicable tasks + Sub-process + Events | **Output mapping** | Source expression (FEEL), Target variable |
 | Multi-instance elements | **Multi-instance** | Input collection, Element variable, Output collection, Output element, Completion condition |
 | Sequence flows / boundary events | **Condition** | Condition expression (FEEL) |
+| Start Event directly under the process | **Execution listener** | Type, Retries (an `end` listener; Retries shows once a Type is entered, clearing the Type removes the listener) |
 | Process | **Version tag** | Tag value |
 | Message catch events (Intermediate Catch Event, Boundary Event), Start Event in event sub-process | **Message** | Subscription correlation key (FEEL) |
 | Any element | **Extension properties** | Key/value pairs (`name` / `value`) |
+
+> The **Execution listener** group follows the engine: it runs a listener only on a start event directly under the process, and takes its Type and Retries as literals only. So the group is offered nowhere else, and a FEEL expression is flagged.
 
 > \* The **Version tag** text field only appears when you select *Version tag* from the **Binding** dropdown. The Binding dropdown has two options: *Latest* (always use the newest deployed version) and *Version tag* (use a specific version identified by a tag string).
 
