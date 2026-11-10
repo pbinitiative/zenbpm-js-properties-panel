@@ -4,6 +4,14 @@
  */
 export declare function getExtensionElement(bo: any, type: string): any;
 /**
+ * Answer the extension element of `type` of `bo`. When it is missing, push
+ * the commands creating it with `props`, and `bpmn:ExtensionElements` too
+ * where that is missing, onto `commands` for one
+ * `properties-panel.multi-command-executor` step, and answer the new element,
+ * which a later command of the same step can update.
+ */
+export declare function ensureExtensionElement(element: any, bo: any, type: string, bpmnFactory: any, commands: any[], props?: Record<string, any>): any;
+/**
  * Update properties on an existing extension element, or create a new one
  * inside bpmn:ExtensionElements if it does not yet exist.
  *

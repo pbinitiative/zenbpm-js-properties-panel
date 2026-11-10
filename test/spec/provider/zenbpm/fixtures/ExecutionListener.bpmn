@@ -24,8 +24,37 @@
         </zenbpm:executionListeners>
       </bpmn:extensionElements>
     </bpmn:startEvent>
+    <bpmn:startEvent id="StartEvent_Backoff" name="Listener with a backoff">
+      <bpmn:extensionElements>
+        <zenbpm:executionListeners>
+          <zenbpm:executionListener eventType="end" type="order-started" retries="5" retryBackoff="PT10S" />
+        </zenbpm:executionListeners>
+      </bpmn:extensionElements>
+    </bpmn:startEvent>
+    <bpmn:startEvent id="StartEvent_StartListener" name="Start listener of another engine">
+      <bpmn:extensionElements>
+        <zenbpm:executionListeners>
+          <zenbpm:executionListener eventType="start" type="audit" />
+        </zenbpm:executionListeners>
+      </bpmn:extensionElements>
+    </bpmn:startEvent>
+    <bpmn:startEvent id="StartEvent_TwoListeners" name="Two listeners">
+      <bpmn:extensionElements>
+        <zenbpm:executionListeners>
+          <zenbpm:executionListener eventType="end" type="first" />
+          <zenbpm:executionListener eventType="end" type="second" />
+        </zenbpm:executionListeners>
+      </bpmn:extensionElements>
+    </bpmn:startEvent>
     <bpmn:subProcess id="SubProcess_1">
       <bpmn:startEvent id="StartEvent_SubProcess" />
+      <bpmn:startEvent id="StartEvent_SubProcessListener">
+        <bpmn:extensionElements>
+          <zenbpm:executionListeners>
+            <zenbpm:executionListener eventType="end" type="nested" />
+          </zenbpm:executionListeners>
+        </bpmn:extensionElements>
+      </bpmn:startEvent>
     </bpmn:subProcess>
     <bpmn:subProcess id="EventSubProcess_1" triggeredByEvent="true">
       <bpmn:startEvent id="StartEvent_EventSubProcess">
@@ -46,11 +75,23 @@
       <bpmndi:BPMNShape id="StartEvent_OnlyListener_di" bpmnElement="StartEvent_OnlyListener">
         <dc:Bounds x="300" y="100" width="36" height="36" />
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_Backoff_di" bpmnElement="StartEvent_Backoff">
+        <dc:Bounds x="650" y="100" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_StartListener_di" bpmnElement="StartEvent_StartListener">
+        <dc:Bounds x="750" y="100" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_TwoListeners_di" bpmnElement="StartEvent_TwoListeners">
+        <dc:Bounds x="850" y="100" width="36" height="36" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="SubProcess_1_di" bpmnElement="SubProcess_1" isExpanded="true">
         <dc:Bounds x="100" y="200" width="200" height="120" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="StartEvent_SubProcess_di" bpmnElement="StartEvent_SubProcess">
         <dc:Bounds x="140" y="240" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_SubProcessListener_di" bpmnElement="StartEvent_SubProcessListener">
+        <dc:Bounds x="220" y="240" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EventSubProcess_1_di" bpmnElement="EventSubProcess_1" isExpanded="true">
         <dc:Bounds x="350" y="200" width="200" height="120" />

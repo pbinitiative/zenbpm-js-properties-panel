@@ -218,16 +218,14 @@ function getExtensionElement(bo, type) {
     return (ext.values || []).find((e) => e.$instanceOf(type));
 }
 /**
- * Update properties on an existing extension element, or create a new one
- * inside bpmn:ExtensionElements if it does not yet exist.
- *
- * Uses `properties-panel.multi-command-executor` so all mutations land as
- * a single undo-able step.
+ * Answer the extension element of `type` of `bo`. When it is missing, push
+ * the commands creating it with `props`, and `bpmn:ExtensionElements` too
+ * where that is missing, onto `commands` for one
+ * `properties-panel.multi-command-executor` step, and answer the new element,
+ * which a later command of the same step can update.
  */
-function updateExtensionElementProps(element, bo, type, props, bpmnFactory, commandStack) {
-    const commands = [];
+function ensureExtensionElement(element, bo, type, bpmnFactory, commands, props = {}) {
     let extensionElements = bo.extensionElements;
-    // (1) create bpmn:ExtensionElements container if missing
     if (!extensionElements) {
         extensionElements = bpmnFactory.create('bpmn:ExtensionElements', { values: [] });
         extensionElements.$parent = bo;
@@ -237,25 +235,38 @@ function updateExtensionElementProps(element, bo, type, props, bpmnFactory, comm
         });
     }
     const existing = (extensionElements.values || []).find((e) => e.$instanceOf(type));
+    if (existing)
+        return existing;
+    const created = bpmnFactory.create(type, props);
+    created.$parent = extensionElements;
+    commands.push({
+        cmd: 'element.updateModdleProperties',
+        context: {
+            element,
+            moddleElement: extensionElements,
+            properties: { values: [...(extensionElements.values || []), created] },
+        },
+    });
+    return created;
+}
+/**
+ * Update properties on an existing extension element, or create a new one
+ * inside bpmn:ExtensionElements if it does not yet exist.
+ *
+ * Uses `properties-panel.multi-command-executor` so all mutations land as
+ * a single undo-able step.
+ */
+function updateExtensionElementProps(element, bo, type, props, bpmnFactory, commandStack) {
+    const commands = [];
+    const existing = getExtensionElement(bo, type);
     if (existing) {
-        // (2a) update properties on the existing element
         commands.push({
             cmd: 'element.updateModdleProperties',
             context: { element, moddleElement: existing, properties: props },
         });
     }
     else {
-        // (2b) create and attach a new extension element
-        const created = bpmnFactory.create(type, props);
-        created.$parent = extensionElements;
-        commands.push({
-            cmd: 'element.updateModdleProperties',
-            context: {
-                element,
-                moddleElement: extensionElements,
-                properties: { values: [...(extensionElements.values || []), created] },
-            },
-        });
+        ensureExtensionElement(element, bo, type, bpmnFactory, commands, props);
     }
     commandStack.execute('properties-panel.multi-command-executor', commands);
 }
@@ -913,18 +924,7 @@ function ParamEntry(props) {
 }
 function addParam(element, bo, bpmnFactory, commandStack, paramType, listProp) {
     const commands = [];
-    let extensionElements = bo.extensionElements;
-    if (!extensionElements) {
-        extensionElements = bpmnFactory.create('bpmn:ExtensionElements', { values: [] });
-        extensionElements.$parent = bo;
-        commands.push({ cmd: 'element.updateModdleProperties', context: { element, moddleElement: bo, properties: { extensionElements } } });
-    }
-    let ioMapping = (extensionElements.values || []).find((e) => e.$instanceOf('zenbpm:IoMapping'));
-    if (!ioMapping) {
-        ioMapping = bpmnFactory.create('zenbpm:IoMapping', { inputParameters: [], outputParameters: [] });
-        ioMapping.$parent = extensionElements;
-        commands.push({ cmd: 'element.updateModdleProperties', context: { element, moddleElement: extensionElements, properties: { values: [...(extensionElements.values || []), ioMapping] } } });
-    }
+    const ioMapping = ensureExtensionElement(element, bo, 'zenbpm:IoMapping', bpmnFactory, commands, { inputParameters: [], outputParameters: [] });
     const newParam = bpmnFactory.create(paramType, { source: '', target: '' });
     newParam.$parent = ioMapping;
     commands.push({ cmd: 'element.updateModdleProperties', context: { element, moddleElement: ioMapping, properties: { [listProp]: [...(ioMapping[listProp] || []), newParam] } } });
@@ -1673,10 +1673,9 @@ function canHaveExecutionListener(element) {
     const bo = element.businessObject;
     return element.type === 'bpmn:StartEvent' && !!bo?.$parent && bo.$parent.$type === 'bpmn:Process';
 }
-/** The `end` listener of the element, or undefined when it has none. */
-function getEndListener(bo) {
-    const container = getExtensionElement(bo, CONTAINER_TYPE);
-    return (container?.listeners || []).find((listener) => listener.eventType === END_EVENT_TYPE);
+/** Every execution listener of the element, whatever its event type. */
+function getListeners(bo) {
+    return getExtensionElement(bo, CONTAINER_TYPE)?.listeners || [];
 }
 /**
  * The engine takes `type`, `retries` and `retryBackoff` of a listener as
@@ -1685,9 +1684,29 @@ function getEndListener(bo) {
 function isExpression(value) {
     return value.trim().startsWith('=');
 }
+/**
+ * Why the engine refuses to deploy the listener where it sits, or null. A
+ * listener the panel would not create is still shown with this reason, so that
+ * one imported or moved there can be seen and removed.
+ */
+function validateListenerPlacement(element, listeners, eventType) {
+    if (!canHaveExecutionListener(element)) {
+        return { template: 'Remove this listener: the engine runs a listener only on a start event directly under the process' };
+    }
+    if (listeners.length > 1) {
+        return { template: 'Remove all listeners but one: the engine runs one listener on a start event' };
+    }
+    if (eventType !== END_EVENT_TYPE) {
+        return { template: 'Choose End: the engine runs only an end listener on a start event' };
+    }
+    return null;
+}
 function validateListenerType(value) {
-    if (value && isExpression(value)) {
-        return 'Enter the job type as a literal: a listener takes no FEEL expression';
+    if (!value || value.trim() === '') {
+        return { template: 'Enter the job type of the listener' };
+    }
+    if (isExpression(value)) {
+        return { template: 'Enter the job type as a literal: a listener takes no FEEL expression' };
     }
     return null;
 }
@@ -1696,44 +1715,26 @@ function validateListenerRetries(value) {
     if (trimmed === '')
         return null;
     if (isExpression(trimmed)) {
-        return 'Enter the retries as a literal: a listener takes no FEEL expression';
+        return { template: 'Enter the retries as a literal: a listener takes no FEEL expression' };
     }
     if (!/^\d+$/.test(trimmed) || Number(trimmed) > MAX_INT32) {
-        return `Enter a whole number from 0 to ${MAX_INT32}`;
+        return { template: 'Enter a whole number from 0 to {max}', replacements: { max: MAX_INT32 } };
     }
     return null;
 }
+function translated(translate, message) {
+    return message ? translate(message.template, message.replacements) : null;
+}
 // ─── commands ────────────────────────────────────────────────────────────────
 /**
- * Give the element an `end` listener of the given job type, creating the
+ * Give the element an `end` listener without a job type yet, creating the
  * extension elements and the listeners container where they are missing, in
  * one undoable step.
  */
-function createEndListener(element, bo, type, bpmnFactory, commandStack) {
+function addEndListener(element, bpmnFactory, commandStack) {
     const commands = [];
-    let extensionElements = bo.extensionElements;
-    if (!extensionElements) {
-        extensionElements = bpmnFactory.create('bpmn:ExtensionElements', { values: [] });
-        extensionElements.$parent = bo;
-        commands.push({
-            cmd: 'element.updateModdleProperties',
-            context: { element, moddleElement: bo, properties: { extensionElements } },
-        });
-    }
-    let container = (extensionElements.values || []).find((value) => value.$instanceOf(CONTAINER_TYPE));
-    if (!container) {
-        container = bpmnFactory.create(CONTAINER_TYPE, { listeners: [] });
-        container.$parent = extensionElements;
-        commands.push({
-            cmd: 'element.updateModdleProperties',
-            context: {
-                element,
-                moddleElement: extensionElements,
-                properties: { values: [...(extensionElements.values || []), container] },
-            },
-        });
-    }
-    const listener = bpmnFactory.create(LISTENER_TYPE, { eventType: END_EVENT_TYPE, type });
+    const container = ensureExtensionElement(element, element.businessObject, CONTAINER_TYPE, bpmnFactory, commands, { listeners: [] });
+    const listener = bpmnFactory.create(LISTENER_TYPE, { eventType: END_EVENT_TYPE });
     listener.$parent = container;
     commands.push({
         cmd: 'element.updateModdleProperties',
@@ -1746,13 +1747,13 @@ function createEndListener(element, bo, type, bpmnFactory, commandStack) {
     commandStack.execute('properties-panel.multi-command-executor', commands);
 }
 /**
- * Remove the element's `end` listener. A container left without listeners is
- * removed as well, so that no empty `executionListeners` stays in the XML.
+ * Remove one listener. A container left without listeners is removed as well,
+ * so that no empty `executionListeners` stays in the XML.
  */
-function removeEndListener(element, bo, commandStack) {
+function removeListener(element, listener, commandStack) {
+    const bo = element.businessObject;
     const container = getExtensionElement(bo, CONTAINER_TYPE);
-    const listener = getEndListener(bo);
-    if (!container || !listener)
+    if (!container)
         return;
     const remaining = (container.listeners || []).filter((value) => value !== listener);
     if (remaining.length === 0) {
@@ -1765,83 +1766,117 @@ function removeEndListener(element, bo, commandStack) {
         properties: { listeners: remaining },
     });
 }
+function updateListener(element, listener, properties, commandStack) {
+    commandStack.execute('element.updateModdleProperties', { element, moddleElement: listener, properties });
+}
 // ─── entry components ────────────────────────────────────────────────────────
-function TypeEntry(props) {
-    const { element } = props;
+// Defined at module scope, so that their function references never change and
+// Preact does not remount an input while the user types in it.
+function EventTypeEntry(props) {
+    const { element, id, listener, listeners } = props;
     const commandStack = bpmnJsPropertiesPanel.useService('commandStack');
-    const bpmnFactory = bpmnJsPropertiesPanel.useService('bpmnFactory');
+    const translate = bpmnJsPropertiesPanel.useService('translate');
+    // A listener of another event type, imported from another engine's model,
+    // keeps its value as an option, so that the field shows what is there.
+    const getOptions = () => {
+        const options = [{ value: END_EVENT_TYPE, label: translate('End') }];
+        if (listener.eventType !== END_EVENT_TYPE) {
+            options.push({ value: listener.eventType ?? '', label: listener.eventType || translate('<none>') });
+        }
+        return options;
+    };
+    return propertiesPanel.SelectEntry({
+        element,
+        id,
+        label: translate('Event type'),
+        getValue: () => listener.eventType ?? '',
+        setValue: (value) => updateListener(element, listener, { eventType: value || undefined }, commandStack),
+        getOptions,
+        validate: (value) => translated(translate, validateListenerPlacement(element, listeners, value)),
+    });
+}
+function TypeEntry(props) {
+    const { element, id, listener } = props;
+    const commandStack = bpmnJsPropertiesPanel.useService('commandStack');
     const translate = bpmnJsPropertiesPanel.useService('translate');
     const debounce = bpmnJsPropertiesPanel.useService('debounceInput');
-    const bo = element.businessObject;
-    const getValue = () => getEndListener(bo)?.type ?? '';
-    // Clearing the type removes the listener: a listener without a job type
-    // would be refused at deployment.
-    const setValue = (value) => {
-        const listener = getEndListener(bo);
-        if (!value || value.trim() === '') {
-            removeEndListener(element, bo, commandStack);
-        }
-        else if (listener) {
-            commandStack.execute('element.updateModdleProperties', {
-                element,
-                moddleElement: listener,
-                properties: { type: value },
-            });
-        }
-        else {
-            createEndListener(element, bo, value, bpmnFactory, commandStack);
-        }
-    };
+    // Clearing the type keeps the listener with its other attributes, so that
+    // typing a new type afterwards loses nothing; the listener is removed with
+    // the delete button of its list item.
     return propertiesPanel.TextFieldEntry({
         element,
-        id: 'zenbpm-executionListener-type',
+        id,
         label: translate('Type'),
-        description: translate('Job type of the listener. A worker completes the job before the token leaves the start event. Leave empty for no listener.'),
-        getValue,
-        setValue,
-        validate: (value) => validateListenerType(value),
+        description: translate('Job type of the listener. A worker completes the job before the token leaves the start event.'),
+        getValue: () => listener.type,
+        setValue: (value) => updateListener(element, listener, { type: value || undefined }, commandStack),
+        validate: (value) => translated(translate, validateListenerType(value)),
         debounce,
     });
 }
 function RetriesEntry(props) {
-    const { element } = props;
+    const { element, id, listener } = props;
     const commandStack = bpmnJsPropertiesPanel.useService('commandStack');
     const translate = bpmnJsPropertiesPanel.useService('translate');
     const debounce = bpmnJsPropertiesPanel.useService('debounceInput');
-    const bo = element.businessObject;
-    const getValue = () => getEndListener(bo)?.retries ?? '';
-    const setValue = (value) => {
-        const listener = getEndListener(bo);
-        if (!listener)
-            return;
-        commandStack.execute('element.updateModdleProperties', {
-            element,
-            moddleElement: listener,
-            properties: { retries: value && value.trim() !== '' ? value : undefined },
-        });
-    };
     return propertiesPanel.TextFieldEntry({
         element,
-        id: 'zenbpm-executionListener-retries',
+        id,
         label: translate('Retries'),
         description: translate('Optional; the engine default when empty.'),
-        getValue,
-        setValue,
-        validate: (value) => validateListenerRetries(value),
+        getValue: () => listener.retries,
+        setValue: (value) => updateListener(element, listener, { retries: value && value.trim() !== '' ? value : undefined }, commandStack),
+        validate: (value) => translated(translate, validateListenerRetries(value)),
         debounce,
     });
 }
-// ─── exported entry list ─────────────────────────────────────────────────────
-function ExecutionListenerProps(element) {
-    if (!canHaveExecutionListener(element))
-        return [];
-    const entries = [
-        { id: 'zenbpm-executionListener-type', component: TypeEntry, isEdited: propertiesPanel.isTextFieldEntryEdited },
-    ];
-    if (getEndListener(element.businessObject)) {
-        entries.push({ id: 'zenbpm-executionListener-retries', component: RetriesEntry, isEdited: propertiesPanel.isTextFieldEntryEdited });
-    }
-    return entries;
+// ─── group ───────────────────────────────────────────────────────────────────
+const EXECUTION_LISTENER_GROUP_ID = 'zenbpm-executionListener';
+/**
+ * The Execution listener group: offered on a start event directly under the
+ * process, where a listener can be created while there is none, and shown on
+ * any element that has listeners, so that one the engine refuses there can be
+ * removed. Null when neither applies.
+ */
+function createExecutionListenerGroup(element, injector) {
+    const listeners = getListeners(element.businessObject);
+    const canHave = canHaveExecutionListener(element);
+    if (!canHave && listeners.length === 0)
+        return null;
+    const commandStack = injector.get('commandStack');
+    const bpmnFactory = injector.get('bpmnFactory');
+    const translate = injector.get('translate');
+    const eventBus = injector.get('eventBus');
+    const itemId = (index) => `${element.id}-zenbpm-executionListener-${index}`;
+    const items = listeners.map((listener, index) => {
+        const id = itemId(index);
+        return {
+            id,
+            label: listener.type || translate('<empty>'),
+            entries: [
+                // extras such as `listener` are spread into the component's props by CollapsibleEntry
+                { id: `${id}-eventType`, component: EventTypeEntry, isEdited: propertiesPanel.isSelectEntryEdited, listener, listeners },
+                { id: `${id}-type`, component: TypeEntry, isEdited: propertiesPanel.isTextFieldEntryEdited, listener },
+                { id: `${id}-retries`, component: RetriesEntry, isEdited: propertiesPanel.isTextFieldEntryEdited, listener },
+            ],
+            autoFocusEntry: `${id}-type`,
+            remove: () => removeListener(element, listener, commandStack),
+        };
+    });
+    // The engine runs one listener on a start event, so none is offered next to one.
+    const add = canHave && listeners.length === 0
+        ? () => {
+            addEndListener(element, bpmnFactory, commandStack);
+            setTimeout(() => eventBus.fire('propertiesPanel.showEntry', { id: `${itemId(0)}-type` }), 0);
+        }
+        : undefined;
+    return {
+        id: EXECUTION_LISTENER_GROUP_ID,
+        label: translate('Execution listener'),
+        component: propertiesPanel.ListGroup,
+        items,
+        add,
+    };
 }
 
 const PROVIDER_PRIORITY = 500;
@@ -1969,16 +2004,12 @@ class ZenBpmPropertiesProvider {
                     component: propertiesPanel.Group,
                 });
             }
-            // ── Execution listener (start event directly under the process) ─────
-            const executionListenerEntries = ExecutionListenerProps(element);
-            if (executionListenerEntries.length) {
-                groups.push({
-                    id: 'zenbpm-executionListener',
-                    label: translate('Execution listener'),
-                    entries: executionListenerEntries,
-                    component: propertiesPanel.Group,
-                });
-            }
+            // ── Execution listener ───────────────────────────────────────────────
+            // Offered on a start event directly under the process, and shown on any
+            // element that has listeners, so that one the engine refuses is removable.
+            const executionListenerGroup = createExecutionListenerGroup(element, this._injector);
+            if (executionListenerGroup)
+                groups.push(executionListenerGroup);
             // ── Input mapping ────────────────────────────────────────────────────
             const inputGroup = createInputMappingGroup(element, this._injector);
             if (inputGroup)

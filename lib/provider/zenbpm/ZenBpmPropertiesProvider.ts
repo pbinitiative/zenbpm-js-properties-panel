@@ -13,7 +13,7 @@ import { CorrelationKeyProps } from './parts/CorrelationKeyProps';
 import { ExtensionPropertiesGroup } from './parts/ExtensionPropertiesProps';
 import { ExampleDataProps } from './parts/ExampleDataProps';
 import { BusinessKeyProps } from './parts/BusinessKeyProps';
-import { ExecutionListenerProps } from './parts/ExecutionListenerProps';
+import { createExecutionListenerGroup } from './parts/ExecutionListenerProps';
 
 const PROVIDER_PRIORITY = 500;
 
@@ -163,16 +163,11 @@ export class ZenBpmPropertiesProvider {
         });
       }
 
-      // ── Execution listener (start event directly under the process) ─────
-      const executionListenerEntries = ExecutionListenerProps(element);
-      if (executionListenerEntries.length) {
-        groups.push({
-          id: 'zenbpm-executionListener',
-          label: translate('Execution listener'),
-          entries: executionListenerEntries,
-          component: Group,
-        });
-      }
+      // ── Execution listener ───────────────────────────────────────────────
+      // Offered on a start event directly under the process, and shown on any
+      // element that has listeners, so that one the engine refuses is removable.
+      const executionListenerGroup = createExecutionListenerGroup(element, this._injector);
+      if (executionListenerGroup) groups.push(executionListenerGroup);
 
       // ── Input mapping ────────────────────────────────────────────────────
       const inputGroup = createInputMappingGroup(element, this._injector);

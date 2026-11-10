@@ -23,12 +23,12 @@ It reads and writes ZenBPM extension elements (defined by [`@pbinitiative/zenbpm
 | All applicable tasks + Sub-process + Events | **Output mapping** | Source expression (FEEL), Target variable |
 | Multi-instance elements | **Multi-instance** | Input collection, Element variable, Output collection, Output element, Completion condition |
 | Sequence flows / boundary events | **Condition** | Condition expression (FEEL) |
-| Start Event directly under the process | **Execution listener** | Type, Retries (an `end` listener; Retries shows once a Type is entered, clearing the Type removes the listener) |
+| Start Event directly under the process, and any element that has listeners | **Execution listener** | Event type, Type, Retries per listener (*Create* adds an `end` listener while there is none; the delete button of the listener removes it) |
 | Process | **Version tag** | Tag value |
 | Message catch events (Intermediate Catch Event, Boundary Event), Start Event in event sub-process | **Message** | Subscription correlation key (FEEL) |
 | Any element | **Extension properties** | Key/value pairs (`name` / `value`) |
 
-> The **Execution listener** group follows the engine: it runs a listener only on a start event directly under the process, and takes its Type and Retries as literals only. So the group is offered nowhere else, and a FEEL expression is flagged.
+> The **Execution listener** group follows the engine: it runs one `end` listener, only on a start event directly under the process, and takes its Type and Retries as literals only. So a listener can be created nowhere else, and a FEEL expression or a missing Type is flagged. A listener the engine refuses where it sits, such as one of another event type, a second one, or one on a start event moved into a sub-process, is still listed with the reason, so that it can be removed.
 
 > \* The **Version tag** text field only appears when you select *Version tag* from the **Binding** dropdown. The Binding dropdown has two options: *Latest* (always use the newest deployed version) and *Version tag* (use a specific version identified by a tag string).
 

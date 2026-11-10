@@ -7,7 +7,7 @@ import {
 } from '@bpmn-io/properties-panel';
 import { useService } from 'bpmn-js-properties-panel';
 import { createElement } from '@bpmn-io/properties-panel/preact';
-import { getExtensionElement } from '../../../util/ExtensionElementsUtil';
+import { ensureExtensionElement, getExtensionElement } from '../../../util/ExtensionElementsUtil';
 import { getFeelValue } from '../../../util/FeelUtil';
 import { ZEN_FORM, getFormFieldKeys } from './ZenFormProps';
 
@@ -90,20 +90,9 @@ function addParam(
   listProp: 'inputParameters' | 'outputParameters',
 ) {
   const commands: any[] = [];
-  let extensionElements = bo.extensionElements;
-
-  if (!extensionElements) {
-    extensionElements = bpmnFactory.create('bpmn:ExtensionElements', { values: [] });
-    extensionElements.$parent = bo;
-    commands.push({ cmd: 'element.updateModdleProperties', context: { element, moddleElement: bo, properties: { extensionElements } } });
-  }
-
-  let ioMapping = (extensionElements.values || []).find((e: any) => e.$instanceOf('zenbpm:IoMapping'));
-  if (!ioMapping) {
-    ioMapping = bpmnFactory.create('zenbpm:IoMapping', { inputParameters: [], outputParameters: [] });
-    ioMapping.$parent = extensionElements;
-    commands.push({ cmd: 'element.updateModdleProperties', context: { element, moddleElement: extensionElements, properties: { values: [...(extensionElements.values || []), ioMapping] } } });
-  }
+  const ioMapping = ensureExtensionElement(
+    element, bo, 'zenbpm:IoMapping', bpmnFactory, commands, { inputParameters: [], outputParameters: [] },
+  );
 
   const newParam = bpmnFactory.create(paramType, { source: '', target: '' });
   newParam.$parent = ioMapping;
