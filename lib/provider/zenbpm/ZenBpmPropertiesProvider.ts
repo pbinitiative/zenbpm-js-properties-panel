@@ -163,9 +163,9 @@ export class ZenBpmPropertiesProvider {
         });
       }
 
-      // ── Execution listener ───────────────────────────────────────────────
-      // Offered on a start event directly under the process, and shown on any
-      // element that has listeners, so that one the engine refuses is removable.
+      // ── Execution listeners ──────────────────────────────────────────────
+      // Offered where the engine runs listeners, and shown on any element that
+      // has listeners, so that one the engine does not run there is removable.
       const executionListenerGroup = createExecutionListenerGroup(element, this._injector);
       if (executionListenerGroup) groups.push(executionListenerGroup);
 

@@ -2,11 +2,20 @@
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
                   xmlns:zenbpm="http://zenbpm.pbinitiative.org/1.0"
                   id="Definitions_1"
                   targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn:process id="Process_1" isExecutable="true">
-    <bpmn:startEvent id="StartEvent_Plain" name="Plain" />
+    <bpmn:extensionElements>
+      <zenbpm:executionListeners>
+        <zenbpm:executionListener eventType="end" type="process-ended" />
+      </zenbpm:executionListeners>
+    </bpmn:extensionElements>
+    <bpmn:startEvent id="StartEvent_Plain" name="Plain">
+      <bpmn:outgoing>Flow_StartEvent_Plain</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:sequenceFlow id="Flow_StartEvent_Plain" sourceRef="StartEvent_Plain" targetRef="EndEvent_1" />
     <bpmn:startEvent id="StartEvent_Listener" name="With listener">
       <bpmn:extensionElements>
         <zenbpm:executionListeners>
@@ -16,28 +25,36 @@
           <zenbpm:output source="=orderId" target="orderId" />
         </zenbpm:ioMapping>
       </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_StartEvent_Listener</bpmn:outgoing>
     </bpmn:startEvent>
+    <bpmn:sequenceFlow id="Flow_StartEvent_Listener" sourceRef="StartEvent_Listener" targetRef="EndEvent_1" />
     <bpmn:startEvent id="StartEvent_OnlyListener" name="Only a listener">
       <bpmn:extensionElements>
         <zenbpm:executionListeners>
           <zenbpm:executionListener eventType="end" type="order-started" />
         </zenbpm:executionListeners>
       </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_StartEvent_OnlyListener</bpmn:outgoing>
     </bpmn:startEvent>
+    <bpmn:sequenceFlow id="Flow_StartEvent_OnlyListener" sourceRef="StartEvent_OnlyListener" targetRef="EndEvent_1" />
     <bpmn:startEvent id="StartEvent_Backoff" name="Listener with a backoff">
       <bpmn:extensionElements>
         <zenbpm:executionListeners>
           <zenbpm:executionListener eventType="end" type="order-started" retries="5" retryBackoff="PT10S" />
         </zenbpm:executionListeners>
       </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_StartEvent_Backoff</bpmn:outgoing>
     </bpmn:startEvent>
-    <bpmn:startEvent id="StartEvent_StartListener" name="Start listener of another engine">
+    <bpmn:sequenceFlow id="Flow_StartEvent_Backoff" sourceRef="StartEvent_Backoff" targetRef="EndEvent_1" />
+    <bpmn:startEvent id="StartEvent_StartListener" name="Start listener, which a start event does not take">
       <bpmn:extensionElements>
         <zenbpm:executionListeners>
           <zenbpm:executionListener eventType="start" type="audit" />
         </zenbpm:executionListeners>
       </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_StartEvent_StartListener</bpmn:outgoing>
     </bpmn:startEvent>
+    <bpmn:sequenceFlow id="Flow_StartEvent_StartListener" sourceRef="StartEvent_StartListener" targetRef="EndEvent_1" />
     <bpmn:startEvent id="StartEvent_TwoListeners" name="Two listeners">
       <bpmn:extensionElements>
         <zenbpm:executionListeners>
@@ -45,24 +62,156 @@
           <zenbpm:executionListener eventType="end" type="second" />
         </zenbpm:executionListeners>
       </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_StartEvent_TwoListeners</bpmn:outgoing>
     </bpmn:startEvent>
-    <bpmn:subProcess id="SubProcess_1">
-      <bpmn:startEvent id="StartEvent_SubProcess" />
-      <bpmn:startEvent id="StartEvent_SubProcessListener">
+    <bpmn:sequenceFlow id="Flow_StartEvent_TwoListeners" sourceRef="StartEvent_TwoListeners" targetRef="EndEvent_1" />
+    <bpmn:intermediateThrowEvent id="ThrowEvent_Message" name="Throws a message">
+      <bpmn:outgoing>Flow_ThrowEvent_Message</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_1" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:sequenceFlow id="Flow_ThrowEvent_Message" sourceRef="ThrowEvent_Message" targetRef="EndEvent_1" />
+    <bpmn:intermediateThrowEvent id="ThrowEvent_None" name="Throws nothing">
+    </bpmn:intermediateThrowEvent>
+    <bpmn:exclusiveGateway id="Gateway_1" name="Gateway">
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="ServiceTask_1" name="Plain">
+      <bpmn:outgoing>Flow_ServiceTask_1</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_ServiceTask_1" sourceRef="ServiceTask_1" targetRef="EndEvent_1" />
+    <bpmn:sendTask id="SendTask_1" name="Send">
+      <bpmn:outgoing>Flow_SendTask_1</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:sequenceFlow id="Flow_SendTask_1" sourceRef="SendTask_1" targetRef="EndEvent_1" />
+    <bpmn:userTask id="UserTask_1" name="User">
+      <bpmn:outgoing>Flow_UserTask_1</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="Flow_UserTask_1" sourceRef="UserTask_1" targetRef="EndEvent_1" />
+    <bpmn:businessRuleTask id="BusinessRuleTask_JobWorker" name="Rules by a job worker">
+      <bpmn:extensionElements>
+        <zenbpm:taskDefinition type="rules" />
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_BusinessRuleTask_JobWorker</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:sequenceFlow id="Flow_BusinessRuleTask_JobWorker" sourceRef="BusinessRuleTask_JobWorker" targetRef="EndEvent_1" />
+    <bpmn:serviceTask id="ServiceTask_StandardLoop" name="Standard loop">
+      <bpmn:outgoing>Flow_ServiceTask_StandardLoop</bpmn:outgoing>
+      <bpmn:standardLoopCharacteristics />
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_ServiceTask_StandardLoop" sourceRef="ServiceTask_StandardLoop" targetRef="EndEvent_1" />
+    <bpmn:serviceTask id="ServiceTask_Chain" name="Chain">
+      <bpmn:extensionElements>
+        <zenbpm:executionListeners>
+          <zenbpm:executionListener eventType="start" type="reserve-stock" />
+          <zenbpm:executionListener eventType="end" type="notify-customer" />
+          <zenbpm:executionListener eventType="start" type="check-credit" />
+          <zenbpm:executionListener eventType="end" type="archive-order" />
+        </zenbpm:executionListeners>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_ServiceTask_Chain</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_ServiceTask_Chain" sourceRef="ServiceTask_Chain" targetRef="EndEvent_1" />
+    <bpmn:serviceTask id="ServiceTask_Duplicate" name="Same type twice">
+      <bpmn:extensionElements>
+        <zenbpm:executionListeners>
+          <zenbpm:executionListener eventType="start" type="audit" />
+          <zenbpm:executionListener eventType="end" type="audit" />
+          <zenbpm:executionListener eventType="start" type=" audit " />
+        </zenbpm:executionListeners>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_ServiceTask_Duplicate</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_ServiceTask_Duplicate" sourceRef="ServiceTask_Duplicate" targetRef="EndEvent_1" />
+    <bpmn:serviceTask id="ServiceTask_NoOutgoing" name="No outgoing flow">
+      <bpmn:extensionElements>
+        <zenbpm:executionListeners>
+          <zenbpm:executionListener eventType="start" type="audit" />
+        </zenbpm:executionListeners>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="ServiceTask_MultiInstance" name="Multi-instance with a listener">
+      <bpmn:extensionElements>
+        <zenbpm:executionListeners>
+          <zenbpm:executionListener eventType="start" type="audit" />
+        </zenbpm:executionListeners>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_ServiceTask_MultiInstance</bpmn:outgoing>
+      <bpmn:multiInstanceLoopCharacteristics />
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_ServiceTask_MultiInstance" sourceRef="ServiceTask_MultiInstance" targetRef="EndEvent_1" />
+    <bpmn:serviceTask id="ServiceTask_MultiInstancePlain" name="Multi-instance">
+      <bpmn:multiInstanceLoopCharacteristics />
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="ServiceTask_UnknownEventType" name="Event type of another spelling">
+      <bpmn:extensionElements>
+        <zenbpm:executionListeners>
+          <zenbpm:executionListener eventType="End" type="audit" />
+        </zenbpm:executionListeners>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_ServiceTask_UnknownEventType</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_ServiceTask_UnknownEventType" sourceRef="ServiceTask_UnknownEventType" targetRef="EndEvent_1" />
+    <bpmn:businessRuleTask id="BusinessRuleTask_Dmn" name="Rules by a decision">
+      <bpmn:extensionElements>
+        <zenbpm:calledDecision decisionId="decide" />
+      </bpmn:extensionElements>
+    </bpmn:businessRuleTask>
+    <bpmn:businessRuleTask id="BusinessRuleTask_DmnListener" name="Rules by a decision, with a listener">
+      <bpmn:extensionElements>
+        <zenbpm:calledDecision decisionId="decide" />
+        <zenbpm:executionListeners>
+          <zenbpm:executionListener eventType="start" type="audit" />
+        </zenbpm:executionListeners>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_BusinessRuleTask_DmnListener</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:sequenceFlow id="Flow_BusinessRuleTask_DmnListener" sourceRef="BusinessRuleTask_DmnListener" targetRef="EndEvent_1" />
+    <bpmn:scriptTask id="ScriptTask_1" name="Script">
+    </bpmn:scriptTask>
+    <bpmn:receiveTask id="ReceiveTask_1" name="Receive">
+    </bpmn:receiveTask>
+    <bpmn:callActivity id="CallActivity_1" name="Call">
+    </bpmn:callActivity>
+    <bpmn:endEvent id="EndEvent_1" name="End">
+      <bpmn:incoming>Flow_StartEvent_Plain</bpmn:incoming>
+      <bpmn:incoming>Flow_StartEvent_Listener</bpmn:incoming>
+      <bpmn:incoming>Flow_StartEvent_OnlyListener</bpmn:incoming>
+      <bpmn:incoming>Flow_StartEvent_Backoff</bpmn:incoming>
+      <bpmn:incoming>Flow_StartEvent_StartListener</bpmn:incoming>
+      <bpmn:incoming>Flow_StartEvent_TwoListeners</bpmn:incoming>
+      <bpmn:incoming>Flow_ThrowEvent_Message</bpmn:incoming>
+      <bpmn:incoming>Flow_ServiceTask_1</bpmn:incoming>
+      <bpmn:incoming>Flow_SendTask_1</bpmn:incoming>
+      <bpmn:incoming>Flow_UserTask_1</bpmn:incoming>
+      <bpmn:incoming>Flow_BusinessRuleTask_JobWorker</bpmn:incoming>
+      <bpmn:incoming>Flow_ServiceTask_StandardLoop</bpmn:incoming>
+      <bpmn:incoming>Flow_ServiceTask_Chain</bpmn:incoming>
+      <bpmn:incoming>Flow_ServiceTask_Duplicate</bpmn:incoming>
+      <bpmn:incoming>Flow_ServiceTask_MultiInstance</bpmn:incoming>
+      <bpmn:incoming>Flow_ServiceTask_UnknownEventType</bpmn:incoming>
+      <bpmn:incoming>Flow_BusinessRuleTask_DmnListener</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:subProcess id="SubProcess_1" name="Sub-process">
+      <bpmn:startEvent id="StartEvent_SubProcess" name="Start of the sub-process" />
+      <bpmn:startEvent id="StartEvent_SubProcessListener" name="Start of the sub-process, with a listener">
         <bpmn:extensionElements>
           <zenbpm:executionListeners>
             <zenbpm:executionListener eventType="end" type="nested" />
           </zenbpm:executionListeners>
         </bpmn:extensionElements>
       </bpmn:startEvent>
+      <bpmn:serviceTask id="ServiceTask_InSubProcess" name="Inside the sub-process">
+        <bpmn:outgoing>Flow_ServiceTask_InSubProcess</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:endEvent id="EndEvent_SubProcess" name="End of the sub-process">
+        <bpmn:incoming>Flow_ServiceTask_InSubProcess</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Flow_ServiceTask_InSubProcess" sourceRef="ServiceTask_InSubProcess" targetRef="EndEvent_SubProcess" />
     </bpmn:subProcess>
-    <bpmn:subProcess id="EventSubProcess_1" triggeredByEvent="true">
-      <bpmn:startEvent id="StartEvent_EventSubProcess">
+    <bpmn:subProcess id="EventSubProcess_1" name="Event sub-process" triggeredByEvent="true">
+      <bpmn:startEvent id="StartEvent_EventSubProcess" name="Timer of the event sub-process">
         <bpmn:timerEventDefinition id="TimerEventDefinition_1" />
       </bpmn:startEvent>
     </bpmn:subProcess>
-    <bpmn:serviceTask id="ServiceTask_1" />
-    <bpmn:endEvent id="EndEvent_1" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -70,41 +219,173 @@
         <dc:Bounds x="100" y="100" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="StartEvent_Listener_di" bpmnElement="StartEvent_Listener">
-        <dc:Bounds x="200" y="100" width="36" height="36" />
+        <dc:Bounds x="180" y="100" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="StartEvent_OnlyListener_di" bpmnElement="StartEvent_OnlyListener">
-        <dc:Bounds x="300" y="100" width="36" height="36" />
+        <dc:Bounds x="260" y="100" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="StartEvent_Backoff_di" bpmnElement="StartEvent_Backoff">
-        <dc:Bounds x="650" y="100" width="36" height="36" />
+        <dc:Bounds x="340" y="100" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="StartEvent_StartListener_di" bpmnElement="StartEvent_StartListener">
-        <dc:Bounds x="750" y="100" width="36" height="36" />
+        <dc:Bounds x="420" y="100" width="36" height="36" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="StartEvent_TwoListeners_di" bpmnElement="StartEvent_TwoListeners">
-        <dc:Bounds x="850" y="100" width="36" height="36" />
+        <dc:Bounds x="500" y="100" width="36" height="36" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="SubProcess_1_di" bpmnElement="SubProcess_1" isExpanded="true">
-        <dc:Bounds x="100" y="200" width="200" height="120" />
+      <bpmndi:BPMNShape id="ThrowEvent_Message_di" bpmnElement="ThrowEvent_Message">
+        <dc:Bounds x="580" y="100" width="36" height="36" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="StartEvent_SubProcess_di" bpmnElement="StartEvent_SubProcess">
-        <dc:Bounds x="140" y="240" width="36" height="36" />
+      <bpmndi:BPMNShape id="ThrowEvent_None_di" bpmnElement="ThrowEvent_None">
+        <dc:Bounds x="660" y="100" width="36" height="36" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="StartEvent_SubProcessListener_di" bpmnElement="StartEvent_SubProcessListener">
-        <dc:Bounds x="220" y="240" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="EventSubProcess_1_di" bpmnElement="EventSubProcess_1" isExpanded="true">
-        <dc:Bounds x="350" y="200" width="200" height="120" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="StartEvent_EventSubProcess_di" bpmnElement="StartEvent_EventSubProcess">
-        <dc:Bounds x="390" y="240" width="36" height="36" />
+      <bpmndi:BPMNShape id="Gateway_1_di" bpmnElement="Gateway_1">
+        <dc:Bounds x="740" y="93" width="50" height="50" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="ServiceTask_1_di" bpmnElement="ServiceTask_1">
-        <dc:Bounds x="400" y="80" width="100" height="80" />
+        <dc:Bounds x="100" y="180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SendTask_1_di" bpmnElement="SendTask_1">
+        <dc:Bounds x="220" y="180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_1_di" bpmnElement="UserTask_1">
+        <dc:Bounds x="340" y="180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BusinessRuleTask_JobWorker_di" bpmnElement="BusinessRuleTask_JobWorker">
+        <dc:Bounds x="460" y="180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_StandardLoop_di" bpmnElement="ServiceTask_StandardLoop">
+        <dc:Bounds x="580" y="180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_Chain_di" bpmnElement="ServiceTask_Chain">
+        <dc:Bounds x="700" y="180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_Duplicate_di" bpmnElement="ServiceTask_Duplicate">
+        <dc:Bounds x="820" y="180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_NoOutgoing_di" bpmnElement="ServiceTask_NoOutgoing">
+        <dc:Bounds x="100" y="300" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_MultiInstance_di" bpmnElement="ServiceTask_MultiInstance">
+        <dc:Bounds x="220" y="300" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_MultiInstancePlain_di" bpmnElement="ServiceTask_MultiInstancePlain">
+        <dc:Bounds x="340" y="300" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_UnknownEventType_di" bpmnElement="ServiceTask_UnknownEventType">
+        <dc:Bounds x="460" y="300" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BusinessRuleTask_Dmn_di" bpmnElement="BusinessRuleTask_Dmn">
+        <dc:Bounds x="580" y="300" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BusinessRuleTask_DmnListener_di" bpmnElement="BusinessRuleTask_DmnListener">
+        <dc:Bounds x="700" y="300" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ScriptTask_1_di" bpmnElement="ScriptTask_1">
+        <dc:Bounds x="820" y="300" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ReceiveTask_1_di" bpmnElement="ReceiveTask_1">
+        <dc:Bounds x="940" y="300" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="CallActivity_1_di" bpmnElement="CallActivity_1">
+        <dc:Bounds x="1060" y="300" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EndEvent_1_di" bpmnElement="EndEvent_1">
-        <dc:Bounds x="550" y="100" width="36" height="36" />
+        <dc:Bounds x="1250" y="200" width="36" height="36" />
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SubProcess_1_di" bpmnElement="SubProcess_1" isExpanded="true">
+        <dc:Bounds x="100" y="440" width="460" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_SubProcess_di" bpmnElement="StartEvent_SubProcess">
+        <dc:Bounds x="140" y="492" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_SubProcessListener_di" bpmnElement="StartEvent_SubProcessListener">
+        <dc:Bounds x="220" y="492" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_InSubProcess_di" bpmnElement="ServiceTask_InSubProcess">
+        <dc:Bounds x="300" y="470" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_SubProcess_di" bpmnElement="EndEvent_SubProcess">
+        <dc:Bounds x="460" y="492" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EventSubProcess_1_di" bpmnElement="EventSubProcess_1" isExpanded="true">
+        <dc:Bounds x="620" y="440" width="200" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_EventSubProcess_di" bpmnElement="StartEvent_EventSubProcess">
+        <dc:Bounds x="660" y="492" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_StartEvent_Plain_di" bpmnElement="Flow_StartEvent_Plain">
+        <di:waypoint x="136" y="118" />
+        <di:waypoint x="1250" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_StartEvent_Listener_di" bpmnElement="Flow_StartEvent_Listener">
+        <di:waypoint x="216" y="118" />
+        <di:waypoint x="1250" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_StartEvent_OnlyListener_di" bpmnElement="Flow_StartEvent_OnlyListener">
+        <di:waypoint x="296" y="118" />
+        <di:waypoint x="1250" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_StartEvent_Backoff_di" bpmnElement="Flow_StartEvent_Backoff">
+        <di:waypoint x="376" y="118" />
+        <di:waypoint x="1250" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_StartEvent_StartListener_di" bpmnElement="Flow_StartEvent_StartListener">
+        <di:waypoint x="456" y="118" />
+        <di:waypoint x="1250" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_StartEvent_TwoListeners_di" bpmnElement="Flow_StartEvent_TwoListeners">
+        <di:waypoint x="536" y="118" />
+        <di:waypoint x="1250" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ThrowEvent_Message_di" bpmnElement="Flow_ThrowEvent_Message">
+        <di:waypoint x="616" y="118" />
+        <di:waypoint x="1250" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ServiceTask_1_di" bpmnElement="Flow_ServiceTask_1">
+        <di:waypoint x="200" y="220" />
+        <di:waypoint x="1250" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_SendTask_1_di" bpmnElement="Flow_SendTask_1">
+        <di:waypoint x="320" y="220" />
+        <di:waypoint x="1250" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_UserTask_1_di" bpmnElement="Flow_UserTask_1">
+        <di:waypoint x="440" y="220" />
+        <di:waypoint x="1250" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_BusinessRuleTask_JobWorker_di" bpmnElement="Flow_BusinessRuleTask_JobWorker">
+        <di:waypoint x="560" y="220" />
+        <di:waypoint x="1250" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ServiceTask_StandardLoop_di" bpmnElement="Flow_ServiceTask_StandardLoop">
+        <di:waypoint x="680" y="220" />
+        <di:waypoint x="1250" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ServiceTask_Chain_di" bpmnElement="Flow_ServiceTask_Chain">
+        <di:waypoint x="800" y="220" />
+        <di:waypoint x="1250" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ServiceTask_Duplicate_di" bpmnElement="Flow_ServiceTask_Duplicate">
+        <di:waypoint x="920" y="220" />
+        <di:waypoint x="1250" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ServiceTask_MultiInstance_di" bpmnElement="Flow_ServiceTask_MultiInstance">
+        <di:waypoint x="320" y="340" />
+        <di:waypoint x="1250" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ServiceTask_UnknownEventType_di" bpmnElement="Flow_ServiceTask_UnknownEventType">
+        <di:waypoint x="560" y="340" />
+        <di:waypoint x="1250" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_BusinessRuleTask_DmnListener_di" bpmnElement="Flow_BusinessRuleTask_DmnListener">
+        <di:waypoint x="800" y="340" />
+        <di:waypoint x="1250" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ServiceTask_InSubProcess_di" bpmnElement="Flow_ServiceTask_InSubProcess">
+        <di:waypoint x="400" y="510" />
+        <di:waypoint x="460" y="510" />
+      </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>

@@ -1658,20 +1658,52 @@ function BusinessKeyProps(element) {
 
 const CONTAINER_TYPE = 'zenbpm:ExecutionListeners';
 const LISTENER_TYPE = 'zenbpm:ExecutionListener';
-// The one event type the engine runs: on a start event, the listener's job is
-// created when a token reaches the event, and the token leaves it once the job
-// is completed.
+const START_EVENT_TYPE = 'start';
 const END_EVENT_TYPE = 'end';
+// An element whose own work is one job runs listeners before that job
+// (`start`) and after it (`end`).
+const EVENT_TYPES_OF_A_JOB_ELEMENT = [START_EVENT_TYPE, END_EVENT_TYPE];
+// A start event does no work a listener could run before, so it takes `end`
+// listeners only: their jobs hold the token at the event.
+const EVENT_TYPES_OF_A_START_EVENT = [END_EVENT_TYPE];
+const TASKS_WHOSE_WORK_IS_ALWAYS_ONE_JOB = new Set([
+    'bpmn:ServiceTask',
+    'bpmn:SendTask',
+    'bpmn:UserTask',
+]);
 const MAX_INT32 = 2147483647;
 /**
- * The engine runs an execution listener only on a start event directly under
- * `<process>` and refuses one anywhere else at deployment, a start event of an
- * embedded or event sub-process included. In a collaboration the start event's
- * parent is still the participant's process.
+ * The event types of the listeners the engine would run on the element if it
+ * were no multi-instance activity, and none where it runs no listener.
  */
-function canHaveExecutionListener(element) {
-    const bo = element.businessObject;
-    return element.type === 'bpmn:StartEvent' && !!bo?.$parent && bo.$parent.$type === 'bpmn:Process';
+function listenerEventTypesOfTheElementAlone(element) {
+    if (element.type === 'bpmn:StartEvent') {
+        // In a collaboration the start event's parent is still the participant's process.
+        return element.businessObject?.$parent?.$type === 'bpmn:Process' ? EVENT_TYPES_OF_A_START_EVENT : [];
+    }
+    if (TASKS_WHOSE_WORK_IS_ALWAYS_ONE_JOB.has(element.type))
+        return EVENT_TYPES_OF_A_JOB_ELEMENT;
+    if (element.type === 'bpmn:BusinessRuleTask' && getImplementationType(element) === 'jobWorker') {
+        return EVENT_TYPES_OF_A_JOB_ELEMENT;
+    }
+    if (isMessageThrowEvent(element))
+        return EVENT_TYPES_OF_A_JOB_ELEMENT;
+    return [];
+}
+/**
+ * The event types of the listeners the engine runs on the element, and none
+ * where it runs no listener. This is the one table the panel follows, as the
+ * engine follows one: `start` and `end` on an element whose own work is one
+ * job (a service, send or user task, a business rule task done by a job
+ * worker, a message intermediate throw event), none of them where the
+ * activity is multi-instance, and `end` on a start event directly under the
+ * process. The engine refuses a listener anywhere else at deployment, and
+ * ignores one on the process itself.
+ */
+function listenerEventTypesRunOn(element) {
+    if (getMultiInstanceLoopCharacteristics(element))
+        return [];
+    return listenerEventTypesOfTheElementAlone(element);
 }
 /** Every execution listener of the element, whatever its event type. */
 function getListeners(bo) {
@@ -1684,29 +1716,62 @@ function getListeners(bo) {
 function isExpression(value) {
     return value.trim().startsWith('=');
 }
+/** Why the engine runs no listener on the element, with what to do about it. */
+function whyNoListenerRunsOn(element) {
+    if (element.type === 'bpmn:Process') {
+        return { template: 'Remove this listener: the engine runs no listener on the process itself' };
+    }
+    if (listenerEventTypesOfTheElementAlone(element).length > 0) {
+        return { template: 'Remove this listener or the multi-instance marker: the engine runs no listener on a multi-instance activity' };
+    }
+    if (element.type === 'bpmn:StartEvent') {
+        return { template: 'Remove this listener: the engine runs a listener on a start event only directly under the process' };
+    }
+    if (element.type === 'bpmn:BusinessRuleTask') {
+        return { template: 'Remove this listener or choose the Job worker implementation: the engine runs no listener on a business rule task which calls a decision' };
+    }
+    return { template: 'Remove this listener: the engine runs listeners only on service, send and user tasks, job worker business rule tasks, message throw events and start events of the process' };
+}
 /**
- * Why the engine refuses to deploy the listener where it sits, or null. A
- * listener the panel would not create is still shown with this reason, so that
- * one imported or moved there can be seen and removed.
+ * Why the engine does not run the listener where it sits, or null, in the
+ * order the engine checks it. A listener the panel would not create is still
+ * shown with this reason, so that one imported or moved there can be seen and
+ * removed.
  */
-function validateListenerPlacement(element, listeners, eventType) {
-    if (!canHaveExecutionListener(element)) {
-        return { template: 'Remove this listener: the engine runs a listener only on a start event directly under the process' };
+function validateListenerPlacement(element, eventType) {
+    const eventTypes = listenerEventTypesRunOn(element);
+    if (eventTypes.length === 0) {
+        return whyNoListenerRunsOn(element);
     }
-    if (listeners.length > 1) {
-        return { template: 'Remove all listeners but one: the engine runs one listener on a start event' };
+    if (!eventTypes.includes(eventType)) {
+        return eventTypes.includes(START_EVENT_TYPE)
+            ? { template: 'Choose Start or End: the engine runs no listener of another event type' }
+            : { template: 'Choose End: a start event takes only end listeners' };
     }
-    if (eventType !== END_EVENT_TYPE) {
-        return { template: 'Choose End: the engine runs only an end listener on a start event' };
+    // The engine follows the `outgoing` references of the element, which the
+    // modeler keeps in step with its sequence flows.
+    if ((element.businessObject.get('outgoing') || []).length === 0) {
+        return { template: 'Connect an outgoing sequence flow: the token could not leave the element once the listener\'s job is completed' };
     }
     return null;
 }
-function validateListenerType(value) {
+/**
+ * Whether another listener of the element has the same event type and the
+ * same job type. The engine compares the job types without surrounding
+ * whitespace, which a worker could not tell apart.
+ */
+function sharesEventTypeAndType(listener, type, listeners) {
+    return listeners.some((other) => other !== listener && other.eventType === listener.eventType && (other.type ?? '').trim() === type.trim());
+}
+function validateListenerType(value, listener, listeners = []) {
     if (!value || value.trim() === '') {
         return { template: 'Enter the job type of the listener' };
     }
     if (isExpression(value)) {
         return { template: 'Enter the job type as a literal: a listener takes no FEEL expression' };
+    }
+    if (listener && sharesEventTypeAndType(listener, value, listeners)) {
+        return { template: 'Enter another job type: two listeners of one event type need different types' };
     }
     return null;
 }
@@ -1725,16 +1790,24 @@ function validateListenerRetries(value) {
 function translated(translate, message) {
     return message ? translate(message.template, message.replacements) : null;
 }
+/** The event type as the panel words it; one of another engine keeps its own word. */
+function eventTypeLabel(translate, eventType) {
+    if (eventType === START_EVENT_TYPE)
+        return translate('Start');
+    if (eventType === END_EVENT_TYPE)
+        return translate('End');
+    return eventType || translate('<none>');
+}
 // ─── commands ────────────────────────────────────────────────────────────────
 /**
- * Give the element an `end` listener without a job type yet, creating the
- * extension elements and the listeners container where they are missing, in
- * one undoable step.
+ * Give the element one more listener of the event type, behind the ones it
+ * has and without a job type yet, creating the extension elements and the
+ * listeners container where they are missing, in one undoable step.
  */
-function addEndListener(element, bpmnFactory, commandStack) {
+function addListener(element, eventType, bpmnFactory, commandStack) {
     const commands = [];
     const container = ensureExtensionElement(element, element.businessObject, CONTAINER_TYPE, bpmnFactory, commands, { listeners: [] });
-    const listener = bpmnFactory.create(LISTENER_TYPE, { eventType: END_EVENT_TYPE });
+    const listener = bpmnFactory.create(LISTENER_TYPE, { eventType });
     listener.$parent = container;
     commands.push({
         cmd: 'element.updateModdleProperties',
@@ -1773,15 +1846,17 @@ function updateListener(element, listener, properties, commandStack) {
 // Defined at module scope, so that their function references never change and
 // Preact does not remount an input while the user types in it.
 function EventTypeEntry(props) {
-    const { element, id, listener, listeners } = props;
+    const { element, id, listener } = props;
     const commandStack = bpmnJsPropertiesPanel.useService('commandStack');
     const translate = bpmnJsPropertiesPanel.useService('translate');
-    // A listener of another event type, imported from another engine's model,
-    // keeps its value as an option, so that the field shows what is there.
+    // An event type the engine does not run on the element, such as one of
+    // another engine's model, keeps its value as an option, so that the field
+    // shows what is there.
     const getOptions = () => {
-        const options = [{ value: END_EVENT_TYPE, label: translate('End') }];
-        if (listener.eventType !== END_EVENT_TYPE) {
-            options.push({ value: listener.eventType ?? '', label: listener.eventType || translate('<none>') });
+        const eventTypes = listenerEventTypesRunOn(element);
+        const options = eventTypes.map((eventType) => ({ value: eventType, label: eventTypeLabel(translate, eventType) }));
+        if (!eventTypes.includes(listener.eventType)) {
+            options.push({ value: listener.eventType ?? '', label: eventTypeLabel(translate, listener.eventType) });
         }
         return options;
     };
@@ -1792,11 +1867,21 @@ function EventTypeEntry(props) {
         getValue: () => listener.eventType ?? '',
         setValue: (value) => updateListener(element, listener, { eventType: value || undefined }, commandStack),
         getOptions,
-        validate: (value) => translated(translate, validateListenerPlacement(element, listeners, value)),
+        validate: (value) => translated(translate, validateListenerPlacement(element, value)),
     });
 }
+/** When a worker completes the job of the listener, by its event type. */
+function typeDescription(translate, eventType) {
+    if (eventType === START_EVENT_TYPE) {
+        return translate('Job type of the listener. A worker completes the job before the element\'s own work starts.');
+    }
+    if (eventType === END_EVENT_TYPE) {
+        return translate('Job type of the listener. A worker completes the job before the token leaves the element.');
+    }
+    return translate('Job type of the listener.');
+}
 function TypeEntry(props) {
-    const { element, id, listener } = props;
+    const { element, id, listener, listeners } = props;
     const commandStack = bpmnJsPropertiesPanel.useService('commandStack');
     const translate = bpmnJsPropertiesPanel.useService('translate');
     const debounce = bpmnJsPropertiesPanel.useService('debounceInput');
@@ -1807,10 +1892,10 @@ function TypeEntry(props) {
         element,
         id,
         label: translate('Type'),
-        description: translate('Job type of the listener. A worker completes the job before the token leaves the start event.'),
+        description: typeDescription(translate, listener.eventType),
         getValue: () => listener.type,
         setValue: (value) => updateListener(element, listener, { type: value || undefined }, commandStack),
-        validate: (value) => translated(translate, validateListenerType(value)),
+        validate: (value) => translated(translate, validateListenerType(value, listener, listeners)),
         debounce,
     });
 }
@@ -1833,15 +1918,15 @@ function RetriesEntry(props) {
 // ─── group ───────────────────────────────────────────────────────────────────
 const EXECUTION_LISTENER_GROUP_ID = 'zenbpm-executionListener';
 /**
- * The Execution listener group: offered on a start event directly under the
- * process, where a listener can be created while there is none, and shown on
- * any element that has listeners, so that one the engine refuses there can be
- * removed. Null when neither applies.
+ * The Execution listeners group: offered where the engine runs listeners,
+ * where one more listener can always be created behind the ones there, and
+ * shown on any element that has listeners, so that one the engine does not
+ * run there can be removed. Null when neither applies.
  */
 function createExecutionListenerGroup(element, injector) {
     const listeners = getListeners(element.businessObject);
-    const canHave = canHaveExecutionListener(element);
-    if (!canHave && listeners.length === 0)
+    const eventTypes = listenerEventTypesRunOn(element);
+    if (eventTypes.length === 0 && listeners.length === 0)
         return null;
     const commandStack = injector.get('commandStack');
     const bpmnFactory = injector.get('bpmnFactory');
@@ -1852,27 +1937,32 @@ function createExecutionListenerGroup(element, injector) {
         const id = itemId(index);
         return {
             id,
-            label: listener.type || translate('<empty>'),
+            label: translate('{eventType}: {type}', {
+                eventType: eventTypeLabel(translate, listener.eventType),
+                type: listener.type || translate('<no type>'),
+            }),
             entries: [
                 // extras such as `listener` are spread into the component's props by CollapsibleEntry
-                { id: `${id}-eventType`, component: EventTypeEntry, isEdited: propertiesPanel.isSelectEntryEdited, listener, listeners },
-                { id: `${id}-type`, component: TypeEntry, isEdited: propertiesPanel.isTextFieldEntryEdited, listener },
+                { id: `${id}-eventType`, component: EventTypeEntry, isEdited: propertiesPanel.isSelectEntryEdited, listener },
+                { id: `${id}-type`, component: TypeEntry, isEdited: propertiesPanel.isTextFieldEntryEdited, listener, listeners },
                 { id: `${id}-retries`, component: RetriesEntry, isEdited: propertiesPanel.isTextFieldEntryEdited, listener },
             ],
             autoFocusEntry: `${id}-type`,
             remove: () => removeListener(element, listener, commandStack),
         };
     });
-    // The engine runs one listener on a start event, so none is offered next to one.
-    const add = canHave && listeners.length === 0
+    // The engine runs the listeners of one event type in the order of the model,
+    // so a new one goes behind the others, with the first event type the element
+    // takes: `start` on a task, `end` on a start event.
+    const add = eventTypes.length > 0
         ? () => {
-            addEndListener(element, bpmnFactory, commandStack);
-            setTimeout(() => eventBus.fire('propertiesPanel.showEntry', { id: `${itemId(0)}-type` }), 0);
+            addListener(element, eventTypes[0], bpmnFactory, commandStack);
+            setTimeout(() => eventBus.fire('propertiesPanel.showEntry', { id: `${itemId(listeners.length)}-type` }), 0);
         }
         : undefined;
     return {
         id: EXECUTION_LISTENER_GROUP_ID,
-        label: translate('Execution listener'),
+        label: translate('Execution listeners'),
         component: propertiesPanel.ListGroup,
         items,
         add,
@@ -2004,9 +2094,9 @@ class ZenBpmPropertiesProvider {
                     component: propertiesPanel.Group,
                 });
             }
-            // ── Execution listener ───────────────────────────────────────────────
-            // Offered on a start event directly under the process, and shown on any
-            // element that has listeners, so that one the engine refuses is removable.
+            // ── Execution listeners ──────────────────────────────────────────────
+            // Offered where the engine runs listeners, and shown on any element that
+            // has listeners, so that one the engine does not run there is removable.
             const executionListenerGroup = createExecutionListenerGroup(element, this._injector);
             if (executionListenerGroup)
                 groups.push(executionListenerGroup);
