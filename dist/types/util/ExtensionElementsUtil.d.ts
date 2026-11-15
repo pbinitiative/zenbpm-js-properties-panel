@@ -4,6 +4,13 @@
  */
 export declare function getExtensionElement(bo: any, type: string): any;
 /**
+ * Answer the `bpmn:ExtensionElements` of `bo`. When it is missing, push the
+ * command creating it onto `commands` for one
+ * `properties-panel.multi-command-executor` step, and answer the new one,
+ * which a later command of the same step can update.
+ */
+export declare function ensureExtensionElements(element: any, bo: any, bpmnFactory: any, commands: any[]): any;
+/**
  * Answer the extension element of `type` of `bo`. When it is missing, push
  * the commands creating it with `props`, and `bpmn:ExtensionElements` too
  * where that is missing, onto `commands` for one
@@ -24,6 +31,12 @@ export declare function updateExtensionElementProps(element: any, bo: any, type:
  * Executes a single undoable command.
  */
 export declare function removeExtensionElement(element: any, bo: any, type: string, commandStack: any): void;
+/**
+ * Remove one extension element of `bo` and leave every other one, those of
+ * its own type included. No-op if `bo` does not carry it. Executes a single
+ * undoable command.
+ */
+export declare function removeExtensionValue(element: any, bo: any, value: any, commandStack: any): void;
 /**
  * Atomically swap extension elements: remove all instances of `removeType` and
  * ensure exactly one instance of `createType` exists.  Both changes land as a

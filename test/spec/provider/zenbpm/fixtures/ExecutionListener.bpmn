@@ -171,6 +171,75 @@
     </bpmn:receiveTask>
     <bpmn:callActivity id="CallActivity_1" name="Call">
     </bpmn:callActivity>
+    <bpmn:serviceTask id="ServiceTask_TwoContainers" name="Two listener elements">
+      <bpmn:extensionElements>
+        <zenbpm:executionListeners>
+          <zenbpm:executionListener eventType="start" type="visible" />
+        </zenbpm:executionListeners>
+        <zenbpm:executionListeners>
+          <zenbpm:executionListener eventType="start" type="hidden" />
+        </zenbpm:executionListeners>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_ServiceTask_TwoContainers</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_ServiceTask_TwoContainers" sourceRef="ServiceTask_TwoContainers" targetRef="EndEvent_1" />
+    <bpmn:serviceTask id="ServiceTask_EmptyFirstContainer" name="An empty listener element first">
+      <bpmn:extensionElements>
+        <zenbpm:executionListeners />
+        <zenbpm:executionListeners>
+          <zenbpm:executionListener eventType="end" type="later" />
+        </zenbpm:executionListeners>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_ServiceTask_EmptyFirstContainer</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_ServiceTask_EmptyFirstContainer" sourceRef="ServiceTask_EmptyFirstContainer" targetRef="EndEvent_1" />
+    <bpmn:serviceTask id="ServiceTask_EmptyAttributes" name="Empty attributes">
+      <bpmn:extensionElements>
+        <zenbpm:executionListeners>
+          <zenbpm:executionListener eventType="start" type="" retries="" />
+        </zenbpm:executionListeners>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_ServiceTask_EmptyAttributes</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_ServiceTask_EmptyAttributes" sourceRef="ServiceTask_EmptyAttributes" targetRef="EndEvent_1" />
+    <bpmn:businessRuleTask id="BusinessRuleTask_NoType" name="Rules by a job worker without a type">
+      <bpmn:extensionElements>
+        <zenbpm:taskDefinition />
+        <zenbpm:executionListeners>
+          <zenbpm:executionListener eventType="start" type="audit" />
+        </zenbpm:executionListeners>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_BusinessRuleTask_NoType</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:sequenceFlow id="Flow_BusinessRuleTask_NoType" sourceRef="BusinessRuleTask_NoType" targetRef="EndEvent_1" />
+    <bpmn:businessRuleTask id="BusinessRuleTask_DecisionAndJobWorker" name="Rules by a decision and a job worker">
+      <bpmn:extensionElements>
+        <zenbpm:calledDecision decisionId="decide" />
+        <zenbpm:taskDefinition type="rules" />
+        <zenbpm:executionListeners>
+          <zenbpm:executionListener eventType="start" type="audit" />
+        </zenbpm:executionListeners>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_BusinessRuleTask_DecisionAndJobWorker</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:sequenceFlow id="Flow_BusinessRuleTask_DecisionAndJobWorker" sourceRef="BusinessRuleTask_DecisionAndJobWorker" targetRef="EndEvent_1" />
+    <bpmn:businessRuleTask id="BusinessRuleTask_UnnamedDecision" name="Rules by a job worker, beside a decision without an id">
+      <bpmn:extensionElements>
+        <zenbpm:calledDecision decisionId="" />
+        <zenbpm:taskDefinition type="rules" />
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_BusinessRuleTask_UnnamedDecision</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:sequenceFlow id="Flow_BusinessRuleTask_UnnamedDecision" sourceRef="BusinessRuleTask_UnnamedDecision" targetRef="EndEvent_1" />
+    <bpmn:serviceTask id="ServiceTask_BackoffExpression" name="Backoff the engine refuses">
+      <bpmn:extensionElements>
+        <zenbpm:executionListeners>
+          <zenbpm:executionListener eventType="start" type="audit" retryBackoff="=backoff" />
+        </zenbpm:executionListeners>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_ServiceTask_BackoffExpression</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_ServiceTask_BackoffExpression" sourceRef="ServiceTask_BackoffExpression" targetRef="EndEvent_1" />
     <bpmn:endEvent id="EndEvent_1" name="End">
       <bpmn:incoming>Flow_StartEvent_Plain</bpmn:incoming>
       <bpmn:incoming>Flow_StartEvent_Listener</bpmn:incoming>
@@ -189,6 +258,13 @@
       <bpmn:incoming>Flow_ServiceTask_MultiInstance</bpmn:incoming>
       <bpmn:incoming>Flow_ServiceTask_UnknownEventType</bpmn:incoming>
       <bpmn:incoming>Flow_BusinessRuleTask_DmnListener</bpmn:incoming>
+      <bpmn:incoming>Flow_ServiceTask_TwoContainers</bpmn:incoming>
+      <bpmn:incoming>Flow_ServiceTask_EmptyFirstContainer</bpmn:incoming>
+      <bpmn:incoming>Flow_ServiceTask_EmptyAttributes</bpmn:incoming>
+      <bpmn:incoming>Flow_BusinessRuleTask_NoType</bpmn:incoming>
+      <bpmn:incoming>Flow_BusinessRuleTask_DecisionAndJobWorker</bpmn:incoming>
+      <bpmn:incoming>Flow_BusinessRuleTask_UnnamedDecision</bpmn:incoming>
+      <bpmn:incoming>Flow_ServiceTask_BackoffExpression</bpmn:incoming>
     </bpmn:endEvent>
     <bpmn:subProcess id="SubProcess_1" name="Sub-process">
       <bpmn:startEvent id="StartEvent_SubProcess" name="Start of the sub-process" />
@@ -290,6 +366,27 @@
       <bpmndi:BPMNShape id="CallActivity_1_di" bpmnElement="CallActivity_1">
         <dc:Bounds x="1060" y="300" width="100" height="80" />
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_TwoContainers_di" bpmnElement="ServiceTask_TwoContainers">
+        <dc:Bounds x="100" y="620" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_EmptyFirstContainer_di" bpmnElement="ServiceTask_EmptyFirstContainer">
+        <dc:Bounds x="220" y="620" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_EmptyAttributes_di" bpmnElement="ServiceTask_EmptyAttributes">
+        <dc:Bounds x="340" y="620" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BusinessRuleTask_NoType_di" bpmnElement="BusinessRuleTask_NoType">
+        <dc:Bounds x="460" y="620" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BusinessRuleTask_DecisionAndJobWorker_di" bpmnElement="BusinessRuleTask_DecisionAndJobWorker">
+        <dc:Bounds x="580" y="620" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BusinessRuleTask_UnnamedDecision_di" bpmnElement="BusinessRuleTask_UnnamedDecision">
+        <dc:Bounds x="700" y="620" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_BackoffExpression_di" bpmnElement="ServiceTask_BackoffExpression">
+        <dc:Bounds x="820" y="620" width="100" height="80" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EndEvent_1_di" bpmnElement="EndEvent_1">
         <dc:Bounds x="1250" y="200" width="36" height="36" />
       </bpmndi:BPMNShape>
@@ -380,6 +477,34 @@
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_BusinessRuleTask_DmnListener_di" bpmnElement="Flow_BusinessRuleTask_DmnListener">
         <di:waypoint x="800" y="340" />
+        <di:waypoint x="1250" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ServiceTask_TwoContainers_di" bpmnElement="Flow_ServiceTask_TwoContainers">
+        <di:waypoint x="200" y="660" />
+        <di:waypoint x="1250" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ServiceTask_EmptyFirstContainer_di" bpmnElement="Flow_ServiceTask_EmptyFirstContainer">
+        <di:waypoint x="320" y="660" />
+        <di:waypoint x="1250" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ServiceTask_EmptyAttributes_di" bpmnElement="Flow_ServiceTask_EmptyAttributes">
+        <di:waypoint x="440" y="660" />
+        <di:waypoint x="1250" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_BusinessRuleTask_NoType_di" bpmnElement="Flow_BusinessRuleTask_NoType">
+        <di:waypoint x="560" y="660" />
+        <di:waypoint x="1250" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_BusinessRuleTask_DecisionAndJobWorker_di" bpmnElement="Flow_BusinessRuleTask_DecisionAndJobWorker">
+        <di:waypoint x="680" y="660" />
+        <di:waypoint x="1250" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_BusinessRuleTask_UnnamedDecision_di" bpmnElement="Flow_BusinessRuleTask_UnnamedDecision">
+        <di:waypoint x="800" y="660" />
+        <di:waypoint x="1250" y="218" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ServiceTask_BackoffExpression_di" bpmnElement="Flow_ServiceTask_BackoffExpression">
+        <di:waypoint x="920" y="660" />
         <di:waypoint x="1250" y="218" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_ServiceTask_InSubProcess_di" bpmnElement="Flow_ServiceTask_InSubProcess">

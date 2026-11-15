@@ -13,6 +13,7 @@ import {
 } from 'test/TestHelper';
 
 import diagramXML from './fixtures/ExecutionListener.bpmn';
+import collaborationXML from './fixtures/ExecutionListenerCollaboration.bpmn';
 
 const GROUP = 'zenbpm-executionListener';
 
@@ -26,6 +27,8 @@ const ELEMENTS_RUNNING_LISTENERS = [
   'ThrowEvent_Message',
   'ServiceTask_StandardLoop',
   'ServiceTask_InSubProcess',
+  // a decision without an id is none to the engine, so the job worker does the task
+  'BusinessRuleTask_UnnamedDecision',
 ];
 
 // Where the engine runs none, and refuses one at deployment.
@@ -64,11 +67,15 @@ describe('provider/zenbpm - execution listeners', function() {
     return element;
   }
 
-  function getListeners(element: any) {
-    const listeners = (element.businessObject.extensionElements?.values || []).find(
+  function containersOf(element: any) {
+    return (element.businessObject.extensionElements?.values || []).filter(
       (value: any) => value.$type === 'zenbpm:ExecutionListeners'
     );
-    return listeners?.listeners;
+  }
+
+  // The listeners of the element's first executionListeners element, which is the only one of most elements.
+  function getListeners(element: any) {
+    return containersOf(element)[0]?.listeners;
   }
 
   function group() {
@@ -110,6 +117,16 @@ describe('provider/zenbpm - execution listeners', function() {
 
   async function add() {
     await act(() => addButton()!.click());
+  }
+
+  // Enter a field and leave it again without typing. The panel commits a field
+  // when the focus leaves it, which its inputs learn from the `focusout` event
+  // of the browser; a `blur` event does not reach them.
+  async function leave(field: HTMLElement) {
+    await act(() => {
+      field.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+      field.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    });
   }
 
   async function removeItem(index = 0) {
@@ -343,16 +360,43 @@ describe('provider/zenbpm - execution listeners', function() {
     expect(errorOf(retries()), 'the int32 maximum is fine').not.to.exist;
   }));
 
+  it('should accept retries as the engine reads them, a sign and leading zeros included', inject(async function(elementRegistry, selection) {
+    await select(elementRegistry, selection, 'StartEvent_Listener');
+    const retries = () => input('StartEvent_Listener', 'retries');
+
+    for (const value of [ '+3', '-0', '007', '0' ]) {
+      changeInput(retries(), value);
+      await act(() => {});
+      expect(errorOf(retries()), value).not.to.exist;
+    }
+
+    for (const value of [ '+', '1_000', '0x10' ]) {
+      changeInput(retries(), value);
+      await act(() => {});
+      expect(errorOf(retries())?.textContent, value).to.equal('Enter a whole number from 0 to 2147483647');
+    }
+  }));
+
   it('should add no undo step when an empty Retries field is left untouched', inject(async function(elementRegistry, selection, commandStack) {
     await select(elementRegistry, selection, 'StartEvent_OnlyListener');
 
     const retries = input('StartEvent_OnlyListener', 'retries');
-    await act(() => {
-      fireEvent.focus(retries);
-      fireEvent.blur(retries);
-    });
+    await leave(retries);
 
     expect(commandStack.canUndo(), 'undo step').to.be.false;
+  }));
+
+  it('should add no undo step when the field of an attribute the model carries empty is left untouched', inject(async function(elementRegistry, selection, commandStack) {
+    const task = await select(elementRegistry, selection, 'ServiceTask_EmptyAttributes');
+    expect(getListeners(task)[0].type, 'type as imported').to.equal('');
+    expect(getListeners(task)[0].retries, 'retries as imported').to.equal('');
+
+    for (const field of [ 'type', 'retries' ]) {
+      await leave(input('ServiceTask_EmptyAttributes', field));
+    }
+
+    expect(commandStack.canUndo(), 'undo step').to.be.false;
+    expect(errorOf(input('ServiceTask_EmptyAttributes', 'type'))?.textContent).to.match(/Enter the job type/);
   }));
 
   it('should show a start listener on a start event with the reason, and set it to End', inject(async function(elementRegistry, selection) {
@@ -398,17 +442,42 @@ describe('provider/zenbpm - execution listeners', function() {
     expect(errorOf(type(2)), 'second start listener once the types differ').not.to.exist;
   }));
 
-  it('should flag a listener on an element without an outgoing sequence flow, until one is connected', inject(async function(elementRegistry, selection, modeling) {
+  it('should flag a listener on an element without an outgoing sequence flow, as flows are drawn, undone and redone', inject(async function(elementRegistry, selection, modeling, commandStack) {
     const task = await select(elementRegistry, selection, 'ServiceTask_NoOutgoing');
+    const error = () => errorOf(input('ServiceTask_NoOutgoing', 'eventType'))?.textContent;
 
-    expect(errorOf(input('ServiceTask_NoOutgoing', 'eventType'))?.textContent).to.match(/^Connect an outgoing sequence flow/);
+    expect(error()).to.match(/^Connect an outgoing sequence flow/);
 
-    // drawing a flow moves the selection on, and the panel reads the element anew when it is selected again
+    // the task stays selected: a flow is no change of the task to the modeler, but it is one to its listeners
     await act(() => modeling.connect(task, elementRegistry.get('EndEvent_1')));
-    await select(elementRegistry, selection, 'EndEvent_1');
-    await select(elementRegistry, selection, 'ServiceTask_NoOutgoing');
+    expect(error(), 'once connected').not.to.exist;
 
-    expect(errorOf(input('ServiceTask_NoOutgoing', 'eventType')), 'no error once connected').not.to.exist;
+    await act(() => commandStack.undo());
+    expect(error(), 'once the flow is undone').to.match(/^Connect an outgoing sequence flow/);
+
+    await act(() => commandStack.redo());
+    expect(error(), 'once the flow is redone').not.to.exist;
+  }));
+
+  it('should flag the listeners of an element whose outgoing sequence flow is removed, until that is undone', inject(async function(elementRegistry, selection, modeling, commandStack) {
+    await select(elementRegistry, selection, 'ServiceTask_Chain');
+    const error = () => errorOf(input('ServiceTask_Chain', 'eventType'))?.textContent;
+    expect(error(), 'with its flow').not.to.exist;
+
+    await act(() => modeling.removeConnection(elementRegistry.get('Flow_ServiceTask_Chain')));
+    expect(error(), 'once the flow is removed').to.match(/^Connect an outgoing sequence flow/);
+
+    await act(() => commandStack.undo());
+    expect(error(), 'once the removal is undone').not.to.exist;
+  }));
+
+  it('should flag the listeners of an element whose outgoing sequence flow is reconnected to leave another', inject(async function(elementRegistry, selection, modeling) {
+    await select(elementRegistry, selection, 'ServiceTask_Chain');
+    const flow = elementRegistry.get('Flow_ServiceTask_Chain');
+
+    await act(() => modeling.reconnectStart(flow, elementRegistry.get('ServiceTask_NoOutgoing'), { x: 150, y: 340 }));
+
+    expect(errorOf(input('ServiceTask_Chain', 'eventType'))?.textContent).to.match(/^Connect an outgoing sequence flow/);
   }));
 
   it('should show a listener on a multi-instance activity with the reason, and offer no further one', inject(async function(elementRegistry, selection) {
@@ -419,17 +488,44 @@ describe('provider/zenbpm - execution listeners', function() {
     expect(errorOf(input('ServiceTask_MultiInstance', 'eventType'))?.textContent).to.match(/no listener on a multi-instance activity/);
   }));
 
-  it('should show a listener on a business rule task which calls a decision with the reason, and accept it once a job worker does the task', inject(async function(elementRegistry, selection) {
+  it('should show a listener on a business rule task which calls a decision with the reason, and accept it once a job worker with a type does the task', inject(async function(elementRegistry, selection) {
     await select(elementRegistry, selection, 'BusinessRuleTask_DmnListener');
+    const error = () => errorOf(input('BusinessRuleTask_DmnListener', 'eventType'))?.textContent;
 
     expect(addButton(), 'no listener is offered there').not.to.exist;
-    expect(errorOf(input('BusinessRuleTask_DmnListener', 'eventType'))?.textContent).to.match(/choose the Job worker implementation/);
+    expect(error()).to.match(/choose the Job worker implementation/);
 
+    // choosing Job worker leaves a task definition without a type, which is no job worker's task to the engine yet
     const implementation = domQuery('[name="zenbpm-implementation-type"]', container) as HTMLSelectElement;
     await act(() => fireEvent.change(implementation, { target: { value: 'jobWorker' } }));
+    expect(error(), 'without a job type').to.match(/^Enter the Type of the task definition/);
+    expect(addButton(), 'no listener is offered yet').not.to.exist;
 
-    expect(errorOf(input('BusinessRuleTask_DmnListener', 'eventType')), 'no error once a job worker does the task').not.to.exist;
+    changeInput(domQuery('[name="zenbpm-taskDef-type"]', container), 'rules');
+    await act(() => {});
+
+    expect(error(), 'no error once a job worker does the task').not.to.exist;
     expect(addButton(), 'a further listener is offered').to.exist;
+  }));
+
+  it('should show a listener on a business rule task whose task definition has no type with the reason', inject(async function(elementRegistry, selection) {
+    await select(elementRegistry, selection, 'BusinessRuleTask_NoType');
+
+    expect(addButton(), 'no listener is offered there').not.to.exist;
+    expect(errorOf(input('BusinessRuleTask_NoType', 'eventType'))?.textContent).to.equal(
+      'Enter the Type of the task definition: the engine runs listeners on a business rule task only once a job worker does it'
+    );
+  }));
+
+  it('should show a listener on a business rule task which names a decision beside a job type with the reason: the engine calls the decision', inject(async function(elementRegistry, selection) {
+    await select(elementRegistry, selection, 'BusinessRuleTask_DecisionAndJobWorker');
+
+    // the Implementation entry reads Job worker there, which the engine does not follow
+    expect((domQuery('[name="zenbpm-implementation-type"]', container) as HTMLSelectElement).value).to.equal('jobWorker');
+    expect(addButton(), 'no listener is offered there').not.to.exist;
+    expect(errorOf(input('BusinessRuleTask_DecisionAndJobWorker', 'eventType'))?.textContent).to.match(
+      /^Remove this listener or the called decision of the task/
+    );
   }));
 
   it('should show a listener on the process with the reason, so that it can be removed', inject(async function(canvas, selection) {
@@ -470,6 +566,143 @@ describe('provider/zenbpm - execution listeners', function() {
 
     expect(event.businessObject.$parent.id).to.equal('SubProcess_1');
     expect(errorOf(input('StartEvent_Listener', 'eventType'))?.textContent).to.match(/only directly under the process/);
+  }));
+
+  it('should list the listeners of every executionListeners element in the order of the model', inject(async function(elementRegistry, selection) {
+    await select(elementRegistry, selection, 'ServiceTask_TwoContainers');
+
+    expect(itemLabels()).to.eql([ 'Start: visible', 'Start: hidden' ]);
+
+    await select(elementRegistry, selection, 'ServiceTask_EmptyFirstContainer');
+
+    expect(itemLabels(), 'behind an empty executionListeners element').to.eql([ 'End: later' ]);
+  }));
+
+  it('should remove a listener from its own executionListeners element and keep those of another', inject(async function(elementRegistry, selection) {
+    const task = await select(elementRegistry, selection, 'ServiceTask_TwoContainers');
+
+    await removeItem(0);
+
+    expect(itemLabels()).to.eql([ 'Start: hidden' ]);
+    expect(listenersIn(await elementXml('ServiceTask_TwoContainers'))).to.eql([ { eventType: 'start', type: 'hidden' } ]);
+    expect(containersOf(task), 'the emptied executionListeners element is gone').to.have.length(1);
+
+    await removeItem(0);
+
+    expect(task.businessObject.extensionElements, 'extension elements').to.be.undefined;
+  }));
+
+  it('should add a listener behind those of the last executionListeners element', inject(async function(elementRegistry, selection) {
+    const task = await select(elementRegistry, selection, 'ServiceTask_TwoContainers');
+
+    await add();
+    changeInput(input('ServiceTask_TwoContainers', 'type', 2), 'added');
+
+    expect(listenersIn(await elementXml('ServiceTask_TwoContainers')).map((listener) => listener.type)).to.eql([ 'visible', 'hidden', 'added' ]);
+    expect(containersOf(task).map((listeners: any) => listeners.listeners.length)).to.eql([ 1, 2 ]);
+  }));
+
+  it('should flag the same event type and type in two executionListeners elements, which the engine reads as one list', inject(async function(elementRegistry, selection) {
+    await select(elementRegistry, selection, 'ServiceTask_TwoContainers');
+
+    changeInput(input('ServiceTask_TwoContainers', 'type', 1), 'visible');
+    await act(() => {});
+
+    for (const index of [ 0, 1 ]) {
+      expect(errorOf(input('ServiceTask_TwoContainers', 'type', index))?.textContent, `listener ${index}`).to.match(/Enter another job type/);
+    }
+  }));
+
+  it('should mark the group of an element with a listener the engine does not run, and open it', inject(async function(elementRegistry, selection) {
+    await select(elementRegistry, selection, 'ServiceTask_MultiInstance');
+
+    expect(domQuery('.bio-properties-panel-list-badge--error', group()), 'badge of the group').to.exist;
+    expect(domQuery('.bio-properties-panel-list.open', group()), 'list of the group').to.exist;
+
+    await select(elementRegistry, selection, 'ServiceTask_Chain');
+
+    expect(domQuery('.bio-properties-panel-list-badge', group()), 'badge of the group').to.exist;
+    expect(domQuery('.bio-properties-panel-list-badge--error', group()), 'badge of a group the engine runs').not.to.exist;
+    expect(domQuery('.bio-properties-panel-list.open', group()), 'list of a group the engine runs').not.to.exist;
+  }));
+
+  it('should mark the group for a missing type as well, until it is entered', inject(async function(elementRegistry, selection) {
+    await select(elementRegistry, selection, 'ServiceTask_1');
+
+    await add();
+    expect(domQuery('.bio-properties-panel-list-badge--error', group()), 'without a type').to.exist;
+
+    changeInput(input('ServiceTask_1', 'type'), 'reserve-stock');
+    await act(() => {});
+
+    expect(domQuery('.bio-properties-panel-list-badge--error', group()), 'with a type').not.to.exist;
+  }));
+
+  it('should keep a listener open when the one before it is removed', inject(async function(elementRegistry, selection) {
+    await select(elementRegistry, selection, 'ServiceTask_Chain');
+    const openLabels = () => Array.from(items())
+      .filter((item) => item.classList.contains('open'))
+      .map((item) => domQuery('.bio-properties-panel-collapsible-entry-header-title', item)?.textContent);
+
+    await act(() => (domQuery('.bio-properties-panel-collapsible-entry-header', items()[2]) as HTMLElement).click());
+    expect(openLabels()).to.eql([ 'Start: check-credit' ]);
+
+    await removeItem(0);
+
+    expect(itemLabels()).to.eql([ 'End: notify-customer', 'Start: check-credit', 'End: archive-order' ]);
+    expect(openLabels(), 'the listener the user opened').to.eql([ 'Start: check-credit' ]);
+  }));
+
+  it('should show the retry backoff a listener came with, and offer none to enter for another', inject(async function(elementRegistry, selection) {
+    await select(elementRegistry, selection, 'StartEvent_Backoff');
+    expect(input('StartEvent_Backoff', 'retryBackoff').value).to.equal('PT10S');
+    expect(errorOf(input('StartEvent_Backoff', 'retryBackoff')), 'a backoff the engine reads').not.to.exist;
+
+    await select(elementRegistry, selection, 'StartEvent_Listener');
+    expect(input('StartEvent_Listener', 'retryBackoff'), 'no backoff in the model').not.to.exist;
+
+    await add();
+    expect(input('StartEvent_Listener', 'retryBackoff', 1), 'no backoff for a new listener').not.to.exist;
+  }));
+
+  it('should flag a retry backoff the engine refuses, and take a corrected one', inject(async function(elementRegistry, selection) {
+    await select(elementRegistry, selection, 'ServiceTask_BackoffExpression');
+    const backoff = () => input('ServiceTask_BackoffExpression', 'retryBackoff');
+
+    expect(errorOf(backoff())?.textContent).to.equal('Enter the retry backoff as a literal: a listener takes no FEEL expression');
+    expect(domQuery('.bio-properties-panel-list-badge--error', group()), 'badge of the group').to.exist;
+
+    for (const value of [ 'P1M', 'P1Y2D', 'PT10S,P1M' ]) {
+      changeInput(backoff(), value);
+      await act(() => {});
+      expect(errorOf(backoff())?.textContent, value).to.match(/^Enter the retry backoff in weeks, days, hours, minutes or seconds/);
+    }
+    for (const value of [ 'not-a-duration', 'P', 'PT', 'P1DT', 'PT1.5S', 'pt10s', 'PT10S,', '-PT10S', 'PT1M1H', 'P1H' ]) {
+      changeInput(backoff(), value);
+      await act(() => {});
+      expect(errorOf(backoff())?.textContent, value).to.equal('Enter an ISO-8601 duration such as PT10S, or several separated by commas');
+    }
+    for (const value of [ 'PT0S', 'P1W2D', 'P1DT1H1M1S', 'PT10S, PT1M' ]) {
+      changeInput(backoff(), value);
+      await act(() => {});
+      expect(errorOf(backoff()), value).not.to.exist;
+    }
+
+    expect(listenersIn(await elementXml('ServiceTask_BackoffExpression'))).to.eql([
+      { eventType: 'start', retryBackoff: 'PT10S, PT1M', type: 'audit' },
+    ]);
+    expect(domQuery('.bio-properties-panel-list-badge--error', group()), 'badge once corrected').not.to.exist;
+  }));
+
+  it('should take the retry backoff out of the model when its field is emptied, and keep the field', inject(async function(elementRegistry, selection) {
+    await select(elementRegistry, selection, 'ServiceTask_BackoffExpression');
+
+    changeInput(input('ServiceTask_BackoffExpression', 'retryBackoff'), '');
+    await act(() => {});
+
+    expect(listenersIn(await elementXml('ServiceTask_BackoffExpression'))).to.eql([ { eventType: 'start', type: 'audit' } ]);
+    expect(input('ServiceTask_BackoffExpression', 'retryBackoff'), 'the field, for a backoff to be entered again').to.exist;
+    expect(errorOf(input('ServiceTask_BackoffExpression', 'retryBackoff')), 'an empty backoff is the engine default').not.to.exist;
   }));
 
   it('should undo and redo creating a listener', inject(async function(elementRegistry, selection, commandStack) {
@@ -531,5 +764,46 @@ describe('provider/zenbpm - execution listeners, translated', function() {
     const group = findGroup(container, GROUP);
     expect(domQuery('.bio-properties-panel-group-header-title', group)?.textContent).to.equal('[Execution listeners]');
     expect(domQuery('.bio-properties-panel-collapsible-entry-header-title', group)?.textContent).to.equal('[[Start]: reserve-stock]');
+  }));
+});
+
+describe('provider/zenbpm - execution listeners, in a collaboration', function() {
+  let container: HTMLElement;
+
+  beforeEach(function() {
+    container = TestContainer.get(this);
+  });
+
+  beforeEach(bootstrapZenBpmPropertiesPanel(collaborationXML));
+
+  function group() {
+    return findGroup(container, GROUP);
+  }
+
+  it('should show a listener on the process of a pool with the reason, so that it can be removed', inject(async function(elementRegistry, selection) {
+    const pool = elementRegistry.get('Participant_Listener');
+    await act(() => selection.select(pool));
+
+    expect(group(), 'execution listeners group').to.exist;
+    expect(domQuery('.bio-properties-panel-add-entry', group()), 'no listener is offered there').not.to.exist;
+    const eventType = domQuery(`[name="${entryId('Participant_Listener', 0, 'eventType')}"]`, container) as HTMLElement;
+    expect(domQuery('.bio-properties-panel-error', eventType.closest('.bio-properties-panel-entry') as HTMLElement)?.textContent).to.equal(
+      'Remove this listener: the engine runs no listener on the process itself'
+    );
+
+    await act(() => (domQuery('.bio-properties-panel-remove-entry', group()) as HTMLButtonElement).click());
+
+    expect(pool.businessObject.processRef.extensionElements, 'extension elements of the process').to.be.undefined;
+    expect(group(), 'execution listeners group').not.to.exist;
+    const { xml } = await getBpmnJS().saveXML({ format: true });
+    expect(xml).not.to.contain('executionListener');
+  }));
+
+  it('should offer no listener on the pool of a process without one, and one on a start event in a pool', inject(async function(elementRegistry, selection) {
+    await act(() => selection.select(elementRegistry.get('Participant_Plain')));
+    expect(group(), 'execution listeners group of the pool').not.to.exist;
+
+    await act(() => selection.select(elementRegistry.get('StartEvent_InPool')));
+    expect(domQuery('.bio-properties-panel-add-entry', group()), 'create button of the start event').to.exist;
   }));
 });

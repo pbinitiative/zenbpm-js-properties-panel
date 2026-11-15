@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:zenbpm="http://zenbpm.pbinitiative.org/1.0"
+                  id="Definitions_1"
+                  targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_Listener" name="Pool of a process with a listener" processRef="Process_Listener" />
+    <bpmn:participant id="Participant_Plain" name="Pool of a process without one" processRef="Process_Plain" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_Listener" isExecutable="true">
+    <bpmn:extensionElements>
+      <zenbpm:executionListeners>
+        <zenbpm:executionListener eventType="end" type="process-ended" />
+      </zenbpm:executionListeners>
+    </bpmn:extensionElements>
+    <bpmn:startEvent id="StartEvent_InPool" name="Start in the pool">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_InPool" targetRef="EndEvent_InPool" />
+    <bpmn:endEvent id="EndEvent_InPool" name="End in the pool">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+    </bpmn:endEvent>
+  </bpmn:process>
+  <bpmn:process id="Process_Plain" isExecutable="true" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Participant_Listener_di" bpmnElement="Participant_Listener" isHorizontal="true">
+        <dc:Bounds x="100" y="60" width="500" height="160" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_InPool_di" bpmnElement="StartEvent_InPool">
+        <dc:Bounds x="180" y="122" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_InPool_di" bpmnElement="EndEvent_InPool">
+        <dc:Bounds x="420" y="122" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+        <di:waypoint x="216" y="140" />
+        <di:waypoint x="420" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Participant_Plain_di" bpmnElement="Participant_Plain" isHorizontal="true">
+        <dc:Bounds x="100" y="260" width="500" height="120" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

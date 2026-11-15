@@ -13,7 +13,7 @@ import { CorrelationKeyProps } from './parts/CorrelationKeyProps';
 import { ExtensionPropertiesGroup } from './parts/ExtensionPropertiesProps';
 import { ExampleDataProps } from './parts/ExampleDataProps';
 import { BusinessKeyProps } from './parts/BusinessKeyProps';
-import { createExecutionListenerGroup } from './parts/ExecutionListenerProps';
+import { createExecutionListenerGroup, reportSourcesOfChangedSequenceFlows } from './parts/ExecutionListenerProps';
 
 const PROVIDER_PRIORITY = 500;
 
@@ -86,6 +86,9 @@ export class ZenBpmPropertiesProvider {
     setupFormSaveHandler(injector);
 
     removeUnsupportedPropertiesOnImport(injector);
+
+    // Whether a listener can run depends on the outgoing sequence flows of its element.
+    reportSourcesOfChangedSequenceFlows(injector);
   }
 
   getGroups(element: any) {

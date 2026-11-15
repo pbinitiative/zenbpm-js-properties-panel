@@ -32,6 +32,12 @@ declare module '@bpmn-io/properties-panel' {
   export const Group: EntryComponent;
   export const ListGroup: EntryComponent;
 
+  // The errors the panel knows of, by entry id: an entry shows the one of its
+  // id, a list group marks itself where an item of it has one.
+  export const ErrorsContext: {
+    Provider: EntryComponent;
+  };
+
   // Form-entry components
   export const TextFieldEntry: EntryComponent;
   export const TextAreaEntry: EntryComponent;
@@ -57,6 +63,12 @@ declare module '@bpmn-io/properties-panel/preact' {
     props: Record<string, any> | null,
     ...children: any[]
   ): any;
+}
+
+// ─── @bpmn-io/properties-panel/preact/hooks ──────────────────────────────────
+
+declare module '@bpmn-io/properties-panel/preact/hooks' {
+  export function useContext(context: any): any;
 }
 
 // ─── bpmn-js-properties-panel ────────────────────────────────────────────────
