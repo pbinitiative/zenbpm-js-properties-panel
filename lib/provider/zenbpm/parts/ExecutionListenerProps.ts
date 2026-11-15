@@ -472,15 +472,21 @@ const EXECUTION_LISTENER_GROUP_ID = 'zenbpm-executionListener';
 
 // A list item keeps what the user did to it, such as having opened it, by its
 // id. The id therefore follows the listener and not its position, or removing
-// one listener would hand its state to the next.
-const itemNumbers = new WeakMap<object, number>();
-let nextItemNumber = 0;
+// one listener would hand its state to the next. The listeners of an element
+// are numbered as the panel first sees them, each element from zero, so that
+// a model read anew gets the ids it had.
+const itemNumbersOfOwners = new WeakMap<object, { ofListeners: WeakMap<object, number>; next: number }>();
 
-function itemNumberOf(listener: any): number {
-  let itemNumber = itemNumbers.get(listener);
+function itemNumberOf(owner: any, listener: any): number {
+  let itemNumbers = itemNumbersOfOwners.get(owner);
+  if (!itemNumbers) {
+    itemNumbers = { ofListeners: new WeakMap(), next: 0 };
+    itemNumbersOfOwners.set(owner, itemNumbers);
+  }
+  let itemNumber = itemNumbers.ofListeners.get(listener);
   if (itemNumber === undefined) {
-    itemNumber = nextItemNumber++;
-    itemNumbers.set(listener, itemNumber);
+    itemNumber = itemNumbers.next++;
+    itemNumbers.ofListeners.set(listener, itemNumber);
   }
   return itemNumber;
 }
@@ -508,7 +514,8 @@ function ExecutionListenersGroup(props: any) {
  * run there can be removed. Null when neither applies.
  */
 export function createExecutionListenerGroup(element: any, injector: any): any | null {
-  const listeners = getListeners(listenerOwnerOf(element));
+  const owner = listenerOwnerOf(element);
+  const listeners = getListeners(owner);
   const eventTypes = listenerEventTypesRunOn(element);
   if (eventTypes.length === 0 && listeners.length === 0) return null;
 
@@ -542,7 +549,7 @@ export function createExecutionListenerGroup(element: any, injector: any): any |
       check(`${id}-retryBackoff`, validateListenerRetryBackoff(retryBackoffOf(listener)));
     }
     return {
-      id: `${element.id}-zenbpm-executionListener-item-${itemNumberOf(listener)}`,
+      id: `${element.id}-zenbpm-executionListener-item-${itemNumberOf(owner, listener)}`,
       label: translate('{eventType}: {type}', {
         eventType: eventTypeLabel(translate, listener.eventType),
         type: listener.type || translate('<no type>'),

@@ -653,6 +653,20 @@ describe('provider/zenbpm - execution listeners', function() {
     expect(openLabels(), 'the listener the user opened').to.eql([ 'Start: check-credit' ]);
   }));
 
+  it('should give the listeners of a model read anew the list items they had', inject(async function(elementRegistry, selection) {
+    const itemIds = () => Array.from(items()).map((item) => item.getAttribute('data-entry-id'));
+
+    await select(elementRegistry, selection, 'ServiceTask_Chain');
+    const before = itemIds();
+    expect(before).to.have.length(4);
+
+    const { xml } = await getBpmnJS().saveXML();
+    await act(() => getBpmnJS().importXML(xml));
+    await select(getBpmnJS().get('elementRegistry'), getBpmnJS().get('selection'), 'ServiceTask_Chain');
+
+    expect(itemIds()).to.eql(before);
+  }));
+
   it('should show the retry backoff a listener came with, and offer none to enter for another', inject(async function(elementRegistry, selection) {
     await select(elementRegistry, selection, 'StartEvent_Backoff');
     expect(input('StartEvent_Backoff', 'retryBackoff').value).to.equal('PT10S');
