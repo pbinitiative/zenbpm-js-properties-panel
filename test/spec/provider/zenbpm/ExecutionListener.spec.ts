@@ -582,20 +582,55 @@ describe('provider/zenbpm - execution listeners', function() {
     );
   }));
 
-  it('should show a listener on the process with the reason, so that it can be removed', inject(async function(canvas, selection) {
+  it('should show a listener on the process as one the engine ignores, not as one it refuses, so that it can be removed', inject(async function(canvas, selection) {
     await act(() => selection.select([]));
     const process = canvas.getRootElement();
 
     expect(group(), 'execution listeners group').to.exist;
     expect(addButton(), 'no listener is offered there').not.to.exist;
-    expect(errorOf(input('Process_1', 'eventType'))?.textContent).to.equal(
-      'Remove this listener: the engine runs no listener on the process itself'
+    expect(descriptionOf(input('Process_1', 'eventType'))).to.equal(
+      'The engine runs no listener on the process itself and ignores this one. It can be removed.'
     );
+    expect(errorOf(input('Process_1', 'eventType')), 'the engine deploys the model').not.to.exist;
+    expect(domQuery('.bio-properties-panel-list-badge--error', group()), 'badge of the group').not.to.exist;
+    expect(groupIsOpen(), 'a group without a flagged listener').to.be.false;
+
+    // what the listener holds says nothing to an engine which does not read it
+    await toggleGroup();
+    changeInput(input('Process_1', 'type'), '');
+    changeInput(input('Process_1', 'retries'), '=retries');
+    await act(() => {});
+    expect(errorOf(input('Process_1', 'type')), 'an empty type').not.to.exist;
+    expect(errorOf(input('Process_1', 'retries')), 'retries as an expression').not.to.exist;
+    expect(domQuery('.bio-properties-panel-list-badge--error', group()), 'badge of the group').not.to.exist;
 
     await removeItem();
 
     expect(process.businessObject.extensionElements, 'extension elements').to.be.undefined;
     expect(group(), 'execution listeners group').not.to.exist;
+  }));
+
+  it('should give a listener where the engine runs none the one reason, whatever its attributes hold', inject(async function(elementRegistry, selection) {
+    await select(elementRegistry, selection, 'ServiceTask_MultiInstance');
+
+    changeInput(input('ServiceTask_MultiInstance', 'type'), '');
+    changeInput(input('ServiceTask_MultiInstance', 'retries'), '-1');
+    await act(() => {});
+
+    expect(errorOf(input('ServiceTask_MultiInstance', 'eventType'))?.textContent).to.match(/^Remove this listener or the multi-instance marker/);
+    expect(errorOf(input('ServiceTask_MultiInstance', 'type')), 'an empty type beside "Remove this listener"').not.to.exist;
+    expect(errorOf(input('ServiceTask_MultiInstance', 'retries')), 'retries below zero beside "Remove this listener"').not.to.exist;
+  }));
+
+  it('should flag the attributes of a listener once the engine runs it', inject(async function(elementRegistry, selection, modeling) {
+    const task = await select(elementRegistry, selection, 'ServiceTask_MultiInstance');
+    changeInput(input('ServiceTask_MultiInstance', 'type'), '');
+    await act(() => {});
+
+    await act(() => modeling.updateProperties(task, { loopCharacteristics: undefined }));
+
+    expect(errorOf(input('ServiceTask_MultiInstance', 'eventType')), 'no multi-instance activity any more').not.to.exist;
+    expect(errorOf(input('ServiceTask_MultiInstance', 'type'))?.textContent).to.match(/Enter the job type/);
   }));
 
   it('should show a listener on a start event inside a sub-process with the reason, so that it can be removed', inject(async function(elementRegistry, selection) {
@@ -917,16 +952,18 @@ describe('provider/zenbpm - execution listeners, in a collaboration', function()
     return findGroup(container, GROUP);
   }
 
-  it('should show a listener on the process of a pool with the reason, so that it can be removed', inject(async function(elementRegistry, selection) {
+  it('should show a listener on the process of a pool as one the engine ignores, so that it can be removed', inject(async function(elementRegistry, selection) {
     const pool = elementRegistry.get('Participant_Listener');
     await act(() => selection.select(pool));
 
     expect(group(), 'execution listeners group').to.exist;
     expect(domQuery('.bio-properties-panel-add-entry', group()), 'no listener is offered there').not.to.exist;
-    const eventType = domQuery(`[name="${entryId('Participant_Listener', 0, 'eventType')}"]`, container) as HTMLElement;
-    expect(domQuery('.bio-properties-panel-error', eventType.closest('.bio-properties-panel-entry') as HTMLElement)?.textContent).to.equal(
-      'Remove this listener: the engine runs no listener on the process itself'
+    const eventType = (domQuery(`[name="${entryId('Participant_Listener', 0, 'eventType')}"]`, container) as HTMLElement)
+      .closest('.bio-properties-panel-entry') as HTMLElement;
+    expect(domQuery('.bio-properties-panel-description', eventType)?.textContent).to.equal(
+      'The engine runs no listener on the process itself and ignores this one. It can be removed.'
     );
+    expect(domQuery('.bio-properties-panel-error', eventType), 'the engine deploys the model').not.to.exist;
 
     await act(() => (domQuery('.bio-properties-panel-remove-entry', group()) as HTMLButtonElement).click());
 

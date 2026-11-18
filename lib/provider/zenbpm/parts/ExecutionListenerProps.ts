@@ -154,11 +154,16 @@ function isExpression(value: string): boolean {
   return value.trim().startsWith('=');
 }
 
-/** Why the engine runs no listener on the element, with what to do about it. */
+// The engine neither runs nor refuses a listener on the process itself, so
+// one there is shown with this note and without a reason to correct it: a
+// model with it is deployed as one without.
+const NOTE_ON_A_LISTENER_OF_THE_PROCESS = 'The engine runs no listener on the process itself and ignores this one. It can be removed.';
+
+/**
+ * Why the engine runs no listener on the element, which is not the process,
+ * with what to do about it.
+ */
 function whyNoListenerRunsOn(element: any): ValidationMessage {
-  if (isProcess(element)) {
-    return { template: 'Remove this listener: the engine runs no listener on the process itself' };
-  }
   if (listenerEventTypesOfTheElementAlone(element).length > 0) {
     return { template: 'Remove this listener or the multi-instance marker: the engine runs no listener on a multi-instance activity' };
   }
@@ -185,12 +190,13 @@ function whyNoListenerRunsOnTheBusinessRuleTask(bo: any): ValidationMessage {
 }
 
 /**
- * Why the engine does not run the listener where it sits, or null, in the
- * order the engine checks it. A listener the panel would not create is still
- * shown with this reason, so that one imported or moved there can be seen and
+ * Why the engine refuses the listener where it sits, or null, in the order
+ * the engine checks it. A listener the panel would not create is still shown
+ * with this reason, so that one imported or moved there can be seen and
  * removed.
  */
 function validateListenerPlacement(element: any, eventType: string | undefined): ValidationMessage | null {
+  if (isProcess(element)) return null;
   const eventTypes = listenerEventTypesRunOn(element);
   if (eventTypes.length === 0) {
     return whyNoListenerRunsOn(element);
@@ -217,6 +223,17 @@ function sharesEventTypeAndType(listener: any, type: string, listeners: any[]): 
   return listeners.some((other: any) =>
     other !== listener && other.eventType === listener.eventType && (other.type ?? '').trim() === type.trim()
   );
+}
+
+/**
+ * What the validation finds in an attribute of a listener of the element,
+ * and nothing where the engine runs no listener: there the one thing to say
+ * is that it does not run, beside which "Enter the job type" would ask for
+ * the opposite of "Remove this listener". The attributes are checked once
+ * the engine runs the listener.
+ */
+function validateAttribute(element: any, validation: () => ValidationMessage | null): ValidationMessage | null {
+  return listenerEventTypesRunOn(element).length > 0 ? validation() : null;
 }
 
 function validateListenerType(value: string | undefined, listener: any, listeners: any[]): ValidationMessage | null {
@@ -379,6 +396,7 @@ function EventTypeEntry(props: any) {
     getValue: () => listener.eventType ?? '',
     setValue: (value: string) => updateListener(element, listener, { eventType: value || undefined }, commandStack),
     getOptions,
+    description: isProcess(element) ? translate(NOTE_ON_A_LISTENER_OF_THE_PROCESS) : undefined,
     validate: (value: string) => translated(translate, validateListenerPlacement(element, value)),
   });
 }
@@ -414,7 +432,8 @@ function TypeEntry(props: any) {
     description: typeDescription(translate, listener.eventType),
     getValue: () => listener.type || undefined,
     setValue: (value: string | undefined) => updateListener(element, listener, { type: value || undefined }, commandStack),
-    validate: (value: string) => translated(translate, validateListenerType(value, listener, listeners)),
+    validate: (value: string) =>
+      translated(translate, validateAttribute(element, () => validateListenerType(value, listener, listeners))),
     debounce,
   });
 }
@@ -433,7 +452,7 @@ function RetriesEntry(props: any) {
     getValue: () => listener.retries || undefined,
     setValue: (value: string | undefined) =>
       updateListener(element, listener, { retries: value && value.trim() !== '' ? value : undefined }, commandStack),
-    validate: (value: string) => translated(translate, validateListenerRetries(value)),
+    validate: (value: string) => translated(translate, validateAttribute(element, () => validateListenerRetries(value))),
     debounce,
   });
 }
@@ -452,7 +471,7 @@ function RetryBackoffEntry(props: any) {
     getValue: () => retryBackoffOf(listener) || undefined,
     setValue: (value: string | undefined) =>
       updateListener(element, listener, { retryBackoff: value && value.trim() !== '' ? value : undefined }, commandStack),
-    validate: (value: string) => translated(translate, validateListenerRetryBackoff(value)),
+    validate: (value: string) => translated(translate, validateAttribute(element, () => validateListenerRetryBackoff(value))),
     debounce,
   });
 }
@@ -523,8 +542,8 @@ function ExecutionListenersGroup(props: any) {
 /**
  * The Execution listeners group: offered where the engine runs listeners,
  * where one more listener can always be created behind the ones there, and
- * shown on any element that has listeners, so that one the engine does not
- * run there can be removed. Null when neither applies.
+ * shown on any element that has listeners, so that one the engine refuses or
+ * ignores there can be removed. Null when neither applies.
  */
 export function createExecutionListenerGroup(element: any, injector: any): any | null {
   const owner = listenerOwnerOf(element);
@@ -555,11 +574,11 @@ export function createExecutionListenerGroup(element: any, injector: any): any |
       { id: `${id}-retries`, component: RetriesEntry, isEdited: isTextFieldEntryEdited, listener },
     ];
     check(`${id}-eventType`, validateListenerPlacement(element, listener.eventType));
-    check(`${id}-type`, validateListenerType(listener.type, listener, listeners));
-    check(`${id}-retries`, validateListenerRetries(listener.retries));
+    check(`${id}-type`, validateAttribute(element, () => validateListenerType(listener.type, listener, listeners)));
+    check(`${id}-retries`, validateAttribute(element, () => validateListenerRetries(listener.retries)));
     if (showsRetryBackoff(listener)) {
       entries.push({ id: `${id}-retryBackoff`, component: RetryBackoffEntry, isEdited: isTextFieldEntryEdited, listener });
-      check(`${id}-retryBackoff`, validateListenerRetryBackoff(retryBackoffOf(listener)));
+      check(`${id}-retryBackoff`, validateAttribute(element, () => validateListenerRetryBackoff(retryBackoffOf(listener))));
     }
     return {
       id: `${element.id}-zenbpm-executionListener-item-${itemNumberOf(owner, listener)}`,
