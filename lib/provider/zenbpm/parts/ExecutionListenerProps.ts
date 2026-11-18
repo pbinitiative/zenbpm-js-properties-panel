@@ -352,11 +352,24 @@ function labelOfAListenerNotRead(translate: any, { listener, isTaskListener }: L
     : translate('Listener outside executionListeners: {type}', { type });
 }
 
-/** The event type as the panel words it; one of another engine keeps its own word. */
+/**
+ * The event type as the panel words it. One the engine does not know is shown
+ * as the model writes it, in quotes: the engine compares the event type as it
+ * is written, so an `End` of the model is another than the End it runs.
+ */
 function eventTypeLabel(translate: any, eventType: string | undefined): string {
   if (eventType === START_EVENT_TYPE) return translate('Start');
   if (eventType === END_EVENT_TYPE) return translate('End');
-  return eventType || translate('<none>');
+  return eventType ? translate('"{eventType}"', { eventType }) : translate('<none>');
+}
+
+/**
+ * The label of a list item, marked where its listener is flagged. The reason
+ * shows only in an open item, and a group opens with its items closed, so the
+ * label is what tells the flagged listener from the others.
+ */
+function itemLabel(translate: any, label: string, isFlagged: boolean): string {
+  return isFlagged ? translate('⚠ {label}', { label }) : label;
 }
 
 // ─── commands ────────────────────────────────────────────────────────────────
@@ -655,6 +668,7 @@ export function createExecutionListenerGroup(element: any, injector: any): any |
   const check = (entryId: string, message: ValidationMessage | null) => {
     if (message) listenerErrors[entryId] = translated(translate, message) as string;
   };
+  const isFlagged = (entries: { id: string }[]) => entries.some((entry) => entry.id in listenerErrors);
 
   const items = listeners.map((listener: any, index: number) => {
     const id = entriesId(index);
@@ -673,10 +687,10 @@ export function createExecutionListenerGroup(element: any, injector: any): any |
     }
     return {
       id: `${element.id}-zenbpm-executionListener-item-${itemNumberOf(owner, listener)}`,
-      label: translate('{eventType}: {type}', {
+      label: itemLabel(translate, translate('{eventType}: {type}', {
         eventType: eventTypeLabel(translate, listener.eventType),
         type: listener.type || translate('<no type>'),
-      }),
+      }), isFlagged(entries)),
       entries,
       autoFocusEntry: `${id}-type`,
       remove: () => removeListener(element, listener, commandStack),
@@ -691,7 +705,7 @@ export function createExecutionListenerGroup(element: any, injector: any): any |
     if (reason) listenerErrors[entryId] = reason;
     return {
       id: `${element.id}-zenbpm-executionListener-item-${itemNumberOf(owner, listenerNotRead.listener)}`,
-      label: labelOfAListenerNotRead(translate, listenerNotRead),
+      label: itemLabel(translate, labelOfAListenerNotRead(translate, listenerNotRead), reason !== null),
       entries: [ { id: entryId, component: ListenerNotReadEntry, reason, note: translate(NOTE_ON_A_LISTENER_OF_THE_PROCESS) } ],
       remove: () => removeListenerNotRead(element, listenerNotRead, commandStack),
     };

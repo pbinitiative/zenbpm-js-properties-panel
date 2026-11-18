@@ -117,6 +117,10 @@ describe('provider/zenbpm - execution listeners', function() {
     return domQuery('.bio-properties-panel-description', entryOf(field))?.textContent;
   }
 
+  function optionLabelsOf(field: HTMLElement) {
+    return Array.from((field as HTMLSelectElement).options).map((option) => option.textContent);
+  }
+
   function optionsOf(field: HTMLElement) {
     return Array.from((field as HTMLSelectElement).options).map((option) => option.value);
   }
@@ -266,12 +270,12 @@ describe('provider/zenbpm - execution listeners', function() {
     }
   }));
 
-  it('should name a listener without a type by its event type alone', inject(async function(elementRegistry, selection) {
+  it('should name a listener without a type by its event type alone, marked as flagged', inject(async function(elementRegistry, selection) {
     await select(elementRegistry, selection, 'ServiceTask_1');
 
     await add();
 
-    expect(itemLabels()).to.eql([ 'Start: <no type>' ]);
+    expect(itemLabels(), 'flagged until it has a type').to.eql([ '⚠ Start: <no type>' ]);
   }));
 
   it('should say when a worker completes the job of a start listener and of an end listener', inject(async function(elementRegistry, selection) {
@@ -436,13 +440,15 @@ describe('provider/zenbpm - execution listeners', function() {
 
     const eventType = input('ServiceTask_UnknownEventType', 'eventType') as HTMLSelectElement;
     expect(eventType.value, 'the engine compares the event type as it is written').to.equal('End');
-    expect(itemLabels()).to.eql([ 'End: audit' ]);
+    expect(optionLabelsOf(eventType), 'the value of the model as it is written, apart from the End the engine runs').to.eql([ 'Start', 'End', '"End"' ]);
+    expect(itemLabels()).to.eql([ '⚠ "End": audit' ]);
     expect(errorOf(eventType)?.textContent).to.equal('Choose Start or End: the engine runs no listener of another event type');
 
     await act(() => fireEvent.change(eventType, { target: { value: 'end' } }));
 
     expect(getListeners(task)[0].eventType).to.equal('end');
     expect(errorOf(input('ServiceTask_UnknownEventType', 'eventType')), 'no error once End').not.to.exist;
+    expect(itemLabels(), 'once End').to.eql([ 'End: audit' ]);
   }));
 
   it('should flag both listeners of one event type with the same type, whatever the whitespace around it', inject(async function(elementRegistry, selection) {
@@ -757,6 +763,25 @@ describe('provider/zenbpm - execution listeners', function() {
     expect(groupIsOpen(), 'on the next element with a flagged listener').to.be.true;
   }));
 
+  it('should mark each flagged listener in the list, so that a closed item tells which one it is', inject(async function(elementRegistry, selection) {
+    await select(elementRegistry, selection, 'ServiceTask_Duplicate');
+
+    expect(itemLabels()).to.eql([ '⚠ Start: audit', 'End: audit', '⚠ Start:  audit ' ]);
+
+    changeInput(input('ServiceTask_Duplicate', 'type', 2), 'audit-credit');
+    await act(() => {});
+
+    expect(itemLabels(), 'once the types differ').to.eql([ 'Start: audit', 'End: audit', 'Start: audit-credit' ]);
+  }));
+
+  it('should name a listener without an event type as such', inject(async function(elementRegistry, selection, modeling) {
+    const task = await select(elementRegistry, selection, 'ServiceTask_UnknownEventType');
+
+    await act(() => modeling.updateModdleProperties(task, getListeners(task)[0], { eventType: undefined }));
+
+    expect(itemLabels()).to.eql([ '⚠ <none>: audit' ]);
+  }));
+
   it('should mark the group for a missing type as well, until it is entered', inject(async function(elementRegistry, selection) {
     await select(elementRegistry, selection, 'ServiceTask_1');
 
@@ -927,8 +952,8 @@ describe('provider/zenbpm - listeners the engine reads nowhere', function() {
 
     expect(itemLabels()).to.eql([
       'Start: audit',
-      'Task listener "creating": assign-reviewer',
-      'Task listener "completing": notify-reviewer',
+      '⚠ Task listener "creating": assign-reviewer',
+      '⚠ Task listener "completing": notify-reviewer',
     ]);
     expect(errorIn(reasonEntry('UserTask_TaskListeners', 0))).to.equal(TASK_LISTENER_REASON);
     expect(errorIn(reasonEntry('UserTask_TaskListeners', 1))).to.equal(TASK_LISTENER_REASON);
@@ -943,7 +968,7 @@ describe('provider/zenbpm - listeners the engine reads nowhere', function() {
 
     await removeItem(1);
 
-    expect(itemLabels()).to.eql([ 'Start: audit', 'Task listener "completing": notify-reviewer' ]);
+    expect(itemLabels()).to.eql([ 'Start: audit', '⚠ Task listener "completing": notify-reviewer' ]);
     expect(await elementXml('UserTask_TaskListeners')).to.match(
       /<zenbpm:taskListeners>\s*<zenbpm:taskListener [^>]*type="notify-reviewer"[^>]*\/>\s*<\/zenbpm:taskListeners>/
     );
@@ -965,7 +990,7 @@ describe('provider/zenbpm - listeners the engine reads nowhere', function() {
 
   it('should leave no empty extension elements behind when the only task listener is removed', inject(async function(elementRegistry, selection) {
     const task = await select(elementRegistry, selection, 'UserTask_OnlyTaskListener');
-    expect(itemLabels()).to.eql([ 'Task listener "assigning": assign-reviewer' ]);
+    expect(itemLabels()).to.eql([ '⚠ Task listener "assigning": assign-reviewer' ]);
 
     await removeItem();
 
@@ -977,7 +1002,7 @@ describe('provider/zenbpm - listeners the engine reads nowhere', function() {
   it('should list an execution listener in the shape of Camunda 7 with the reason, so that it can be removed', inject(async function(elementRegistry, selection) {
     const task = await select(elementRegistry, selection, 'ServiceTask_Camunda7Listener');
 
-    expect(itemLabels()).to.eql([ 'Listener outside executionListeners: com.acme.Audit' ]);
+    expect(itemLabels()).to.eql([ '⚠ Listener outside executionListeners: com.acme.Audit' ]);
     expect(errorIn(reasonEntry('ServiceTask_Camunda7Listener'))).to.equal(OUTSIDE_REASON);
     expect(hasErrorBadge(), 'badge of the group').to.be.true;
 
@@ -989,14 +1014,14 @@ describe('provider/zenbpm - listeners the engine reads nowhere', function() {
 
   it('should list an execution listener outside an executionListeners element with the reason, beside one created where the engine reads it', inject(async function(elementRegistry, selection) {
     await select(elementRegistry, selection, 'ServiceTask_ListenerOutsideItsElement');
-    expect(itemLabels()).to.eql([ 'Listener outside executionListeners: audit' ]);
+    expect(itemLabels()).to.eql([ '⚠ Listener outside executionListeners: audit' ]);
     expect(errorIn(reasonEntry('ServiceTask_ListenerOutsideItsElement'))).to.equal(OUTSIDE_REASON);
 
     await act(() => addButton()!.click());
     changeInput(domQuery(`[name="${entryId('ServiceTask_ListenerOutsideItsElement', 0, 'type')}"]`, container), 'reserve-stock');
     await act(() => {});
 
-    expect(itemLabels()).to.eql([ 'Start: reserve-stock', 'Listener outside executionListeners: audit' ]);
+    expect(itemLabels()).to.eql([ 'Start: reserve-stock', '⚠ Listener outside executionListeners: audit' ]);
     expect(await elementXml('ServiceTask_ListenerOutsideItsElement')).to.match(
       /<zenbpm:executionListener eventType="start" type="audit" \/>\s*<zenbpm:executionListeners>\s*<zenbpm:executionListener eventType="start" type="reserve-stock" \/>/
     );
@@ -1007,7 +1032,7 @@ describe('provider/zenbpm - listeners the engine reads nowhere', function() {
 
     expect(group(), 'execution listeners group').to.exist;
     expect(addButton(), 'no listener is offered there').not.to.exist;
-    expect(itemLabels()).to.eql([ 'Listener outside executionListeners: ${audit}' ]);
+    expect(itemLabels()).to.eql([ '⚠ Listener outside executionListeners: ${audit}' ]);
     expect(errorIn(reasonEntry('Gateway_Camunda7Listener'))).to.equal(OUTSIDE_REASON);
 
     await removeItem();
@@ -1021,7 +1046,7 @@ describe('provider/zenbpm - listeners the engine reads nowhere', function() {
 
     expect(itemLabels()).to.eql([
       'Listener outside executionListeners: com.acme.ProcessStarted',
-      'Task listener "creating": process-task',
+      '⚠ Task listener "creating": process-task',
     ]);
     expect(errorIn(reasonEntry('Process_1', 0)), 'the engine ignores it there').not.to.exist;
     expect(noteIn(reasonEntry('Process_1', 0))).to.equal(
