@@ -1266,6 +1266,50 @@ function validateJson(value) {
         return `Value must be valid JSON (${err && err.message ? err.message : 'parse error'})`;
     }
 }
+const MAX_INT32 = 2147483647;
+const MAX_INT64 = '9223372036854775807';
+/**
+ * Validate retries written as a literal. The engine reads them as a decimal
+ * integer with an optional sign, and takes none below zero or above what 32
+ * bits hold.
+ */
+function validateRetriesLiteral(value) {
+    const trimmed = value.trim();
+    if (!/^[+-]?\d+$/.test(trimmed) || Number(trimmed) < 0 || Number(trimmed) > MAX_INT32) {
+        return { template: 'Enter a whole number from 0 to {max}', replacements: { max: MAX_INT32 } };
+    }
+    return null;
+}
+// One duration of a retry backoff as the engine reads it: whole numbers, the
+// units in this order, the time units behind a `T`. Years and months parse,
+// so that they can be refused with a reason of their own.
+const BACKOFF_DURATION = /^P(?:(\d+)Y)?(?:(\d+)M)?(?:\d+W)?(?:\d+D)?(?:T(?:\d+H)?(?:\d+M)?(?:\d+S)?)?$/;
+/** Whether the engine can read the digits as a number, which it holds in 64 bits. */
+function fitsInto64Bits(digits) {
+    const significant = digits.replace(/^0+/, '');
+    return significant.length < MAX_INT64.length || (significant.length === MAX_INT64.length && significant <= MAX_INT64);
+}
+/**
+ * Validate a retry backoff written as a literal. The engine reads it as one
+ * ISO-8601 duration or several separated by commas, one for each failure,
+ * and refuses a deployment with one it cannot read.
+ */
+function validateRetryBackoffLiteral(value) {
+    for (const entry of value.split(',')) {
+        const duration = entry.trim();
+        const parts = BACKOFF_DURATION.exec(duration);
+        if (!parts || duration === 'P' || duration.endsWith('T')) {
+            return { template: 'Enter an ISO-8601 duration such as PT10S, or several separated by commas' };
+        }
+        if (!(duration.match(/\d+/g) ?? []).every(fitsInto64Bits)) {
+            return { template: 'Enter smaller numbers: the engine reads none above {max}', replacements: { max: MAX_INT64 } };
+        }
+        if (Number(parts[1] ?? 0) !== 0 || Number(parts[2] ?? 0) !== 0) {
+            return { template: 'Enter the retry backoff in weeks, days, hours, minutes or seconds: the length of a year or a month depends on the date' };
+        }
+    }
+    return null;
+}
 
 const TYPE_PROPERTIES$1 = 'zenbpm:Properties';
 const TYPE_PROPERTY$1 = 'zenbpm:Property';
@@ -1641,12 +1685,6 @@ const TASKS_WHOSE_WORK_IS_ALWAYS_ONE_JOB = new Set([
     'bpmn:SendTask',
     'bpmn:UserTask',
 ]);
-const MAX_INT32 = 2147483647;
-const MAX_INT64 = '9223372036854775807';
-// One duration of a retry backoff as the engine reads it: whole numbers, the
-// units in this order, the time units behind a `T`. Years and months parse,
-// so that they can be refused with a reason of their own.
-const BACKOFF_DURATION = /^P(?:(\d+)Y)?(?:(\d+)M)?(?:\d+W)?(?:\d+D)?(?:T(?:\d+H)?(?:\d+M)?(?:\d+S)?)?$/;
 // ─── where the engine runs listeners ─────────────────────────────────────────
 /**
  * The business object whose listeners the panel shows for the element. A pool
@@ -1868,10 +1906,7 @@ function validateListenerType(value, listener, listeners) {
     }
     return null;
 }
-/**
- * The engine reads the retries as a decimal integer with an optional sign,
- * and takes none below zero or above what 32 bits hold.
- */
+/** The retries of a listener: empty for the engine's default, or a literal the engine reads. */
 function validateListenerRetries(value) {
     const trimmed = (value ?? '').trim();
     if (trimmed === '')
@@ -1879,41 +1914,16 @@ function validateListenerRetries(value) {
     if (isExpression(trimmed)) {
         return { template: 'Enter the retries as a literal: a listener takes no FEEL expression' };
     }
-    if (!/^[+-]?\d+$/.test(trimmed) || Number(trimmed) < 0 || Number(trimmed) > MAX_INT32) {
-        return { template: 'Enter a whole number from 0 to {max}', replacements: { max: MAX_INT32 } };
-    }
-    return null;
+    return validateRetriesLiteral(trimmed);
 }
-/** Whether the engine can read the digits as a number, which it holds in 64 bits. */
-function fitsInto64Bits(digits) {
-    const significant = digits.replace(/^0+/, '');
-    return significant.length < MAX_INT64.length || (significant.length === MAX_INT64.length && significant <= MAX_INT64);
-}
-/**
- * The engine reads the retry backoff as one ISO-8601 duration or several
- * separated by commas, one for each failure, and refuses a deployment with
- * one it cannot read. An empty one takes the engine's default.
- */
+/** The retry backoff of a listener: empty for the engine's default, or a literal the engine reads. */
 function validateListenerRetryBackoff(value) {
     if (!value || value.trim() === '')
         return null;
     if (isExpression(value)) {
         return { template: 'Enter the retry backoff as a literal: a listener takes no FEEL expression' };
     }
-    for (const entry of value.split(',')) {
-        const duration = entry.trim();
-        const parts = BACKOFF_DURATION.exec(duration);
-        if (!parts || duration === 'P' || duration.endsWith('T')) {
-            return { template: 'Enter an ISO-8601 duration such as PT10S, or several separated by commas' };
-        }
-        if (!(duration.match(/\d+/g) ?? []).every(fitsInto64Bits)) {
-            return { template: 'Enter smaller numbers: the engine reads none above {max}', replacements: { max: MAX_INT64 } };
-        }
-        if (Number(parts[1] ?? 0) !== 0 || Number(parts[2] ?? 0) !== 0) {
-            return { template: 'Enter the retry backoff in weeks, days, hours, minutes or seconds: the length of a year or a month depends on the date' };
-        }
-    }
-    return null;
+    return validateRetryBackoffLiteral(value);
 }
 function translated(translate, message) {
     return message ? translate(message.template, message.replacements) : null;
@@ -2131,9 +2141,12 @@ function ListenerNotReadEntry(props) {
 // shows it, so that one the engine refuses can be seen, corrected or cleared;
 // its field stays while it is being edited, an emptied one included.
 const listenersWhichCameWithARetryBackoff = new WeakSet();
-function showsRetryBackoff(listener) {
+/** Called for every listener the group lists, so that one seen with a retry backoff is known from then on. */
+function rememberARetryBackoffOf(listener) {
     if (retryBackoffOf(listener) !== undefined)
         listenersWhichCameWithARetryBackoff.add(listener);
+}
+function cameWithARetryBackoff(listener) {
     return listenersWhichCameWithARetryBackoff.has(listener);
 }
 // ─── group ───────────────────────────────────────────────────────────────────
@@ -2217,7 +2230,8 @@ function createExecutionListenerGroup(element, injector) {
         check(`${id}-eventType`, validateListenerPlacement(element, listener.eventType));
         check(`${id}-type`, validateAttribute(element, () => validateListenerType(listener.type, listener, listeners)));
         check(`${id}-retries`, validateAttribute(element, () => validateListenerRetries(listener.retries)));
-        if (showsRetryBackoff(listener)) {
+        rememberARetryBackoffOf(listener);
+        if (cameWithARetryBackoff(listener)) {
             entries.push({ id: `${id}-retryBackoff`, component: RetryBackoffEntry, isEdited: propertiesPanel.isTextFieldEntryEdited, listener });
             check(`${id}-retryBackoff`, validateAttribute(element, () => validateListenerRetryBackoff(retryBackoffOf(listener))));
         }
