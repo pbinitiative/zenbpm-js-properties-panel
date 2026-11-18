@@ -5,9 +5,10 @@ import {
   TextFieldEntry,
   isSelectEntryEdited,
   isTextFieldEntryEdited,
+  useLayoutState,
 } from '@bpmn-io/properties-panel';
 import { createElement } from '@bpmn-io/properties-panel/preact';
-import { useContext } from '@bpmn-io/properties-panel/preact/hooks';
+import { useContext, useEffect } from '@bpmn-io/properties-panel/preact/hooks';
 import { useService } from 'bpmn-js-properties-panel';
 import {
   ensureExtensionElements,
@@ -496,10 +497,22 @@ function itemNumberOf(owner: any, listener: any): number {
  * known to the panel. An entry shows the reason of its own validation only
  * while its list item is open; known to the panel, the reasons also mark the
  * group, so that a collapsed one does not hide that a deployment will fail.
+ *
+ * A group with such a reason opens by itself when its element is shown, and
+ * is left to the user from then on. It must not follow the reasons any
+ * closer: a group which closed with the last of them would take the field
+ * away in which the user is correcting it.
  */
 function ExecutionListenersGroup(props: any) {
   const { listenerErrors, ...group } = props;
   const { errors } = useContext(ErrorsContext);
+
+  // the panel keeps whether a group is open under this path, for every element alike
+  const [ , setOpen ] = useLayoutState([ 'groups', group.id, 'open' ], false);
+  useEffect(() => {
+    if (Object.keys(listenerErrors).length > 0) setOpen(true);
+  }, [ group.element ]);
+
   return createElement(
     ErrorsContext.Provider,
     { value: { errors: { ...errors, ...listenerErrors } } },
@@ -577,8 +590,6 @@ export function createExecutionListenerGroup(element: any, injector: any): any |
     items,
     add,
     listenerErrors,
-    // a group with a listener the engine does not run opens by itself, until the user closes it
-    shouldOpen: Object.keys(listenerErrors).length > 0,
   };
 }
 

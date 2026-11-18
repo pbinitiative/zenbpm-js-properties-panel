@@ -38,6 +38,10 @@ declare module '@bpmn-io/properties-panel' {
     Provider: EntryComponent;
   };
 
+  // Whether a group is open, and the like, which the panel keeps for every
+  // element alike under a path such as `['groups', id, 'open']`.
+  export function useLayoutState(path: (string | number)[], defaultValue?: any): [ any, (value: any) => void ];
+
   // Form-entry components
   export const TextFieldEntry: EntryComponent;
   export const TextAreaEntry: EntryComponent;
@@ -69,6 +73,7 @@ declare module '@bpmn-io/properties-panel/preact' {
 
 declare module '@bpmn-io/properties-panel/preact/hooks' {
   export function useContext(context: any): any;
+  export function useEffect(effect: () => void | (() => void), inputs?: readonly any[]): void;
 }
 
 // ─── bpmn-js-properties-panel ────────────────────────────────────────────────

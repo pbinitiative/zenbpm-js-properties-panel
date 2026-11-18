@@ -103,6 +103,11 @@ describe('provider/zenbpm - execution listeners', function() {
     return field.closest('.bio-properties-panel-entry') as HTMLElement;
   }
 
+  // Whether the user sees the field: a closed group or list item takes its fields out of the layout.
+  function isInView(field: HTMLElement) {
+    return field.getClientRects().length > 0;
+  }
+
   function errorOf(field: HTMLElement) {
     return domQuery('.bio-properties-panel-error', entryOf(field));
   }
@@ -127,6 +132,18 @@ describe('provider/zenbpm - execution listeners', function() {
       field.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
       field.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
     });
+  }
+
+  function groupIsOpen() {
+    return domQuery('.bio-properties-panel-list.open', group()) !== null;
+  }
+
+  async function toggleGroup() {
+    await act(() => (domQuery('.bio-properties-panel-group-header', group()) as HTMLElement).click());
+  }
+
+  async function toggleItem(index = 0) {
+    await act(() => (domQuery('.bio-properties-panel-collapsible-entry-header', items()[index]) as HTMLElement).click());
   }
 
   async function removeItem(index = 0) {
@@ -650,17 +667,58 @@ describe('provider/zenbpm - execution listeners', function() {
     }
   }));
 
-  it('should mark the group of an element with a listener the engine does not run, and open it', inject(async function(elementRegistry, selection) {
+  it('should mark the group of an element with a listener the engine does not run, and open it by itself', inject(async function(elementRegistry, selection) {
     await select(elementRegistry, selection, 'ServiceTask_MultiInstance');
 
     expect(domQuery('.bio-properties-panel-list-badge--error', group()), 'badge of the group').to.exist;
-    expect(domQuery('.bio-properties-panel-list.open', group()), 'list of the group').to.exist;
+    expect(groupIsOpen(), 'a group with a flagged listener').to.be.true;
 
+    await toggleGroup();
     await select(elementRegistry, selection, 'ServiceTask_Chain');
 
     expect(domQuery('.bio-properties-panel-list-badge', group()), 'badge of the group').to.exist;
     expect(domQuery('.bio-properties-panel-list-badge--error', group()), 'badge of a group the engine runs').not.to.exist;
-    expect(domQuery('.bio-properties-panel-list.open', group()), 'list of a group the engine runs').not.to.exist;
+  }));
+
+  it('should keep the group open and the field in view while the last flagged value is corrected', inject(async function(elementRegistry, selection) {
+    await select(elementRegistry, selection, 'ServiceTask_BackoffExpression');
+    await toggleItem();
+    const backoff = () => input('ServiceTask_BackoffExpression', 'retryBackoff');
+    expect(isInView(backoff()), 'the flagged field, before').to.be.true;
+
+    changeInput(backoff(), 'PT10S');
+    await act(() => {});
+
+    expect(domQuery('.bio-properties-panel-list-badge--error', group()), 'badge once corrected').not.to.exist;
+    expect(groupIsOpen(), 'the group once corrected').to.be.true;
+    expect(isInView(backoff()), 'the field once corrected').to.be.true;
+  }));
+
+  it('should keep the group open when the flagged listener is removed', inject(async function(elementRegistry, selection) {
+    await select(elementRegistry, selection, 'ServiceTask_Duplicate');
+    expect(groupIsOpen(), 'with two listeners of the same type').to.be.true;
+
+    await removeItem(2);
+
+    expect(domQuery('.bio-properties-panel-list-badge--error', group()), 'badge once removed').not.to.exist;
+    expect(groupIsOpen(), 'the group once removed').to.be.true;
+  }));
+
+  it('should leave a group the user closed as it is, and open it for the next element with a flagged listener', inject(async function(elementRegistry, selection) {
+    await select(elementRegistry, selection, 'ServiceTask_MultiInstance');
+    await toggleGroup();
+    expect(groupIsOpen(), 'once closed').to.be.false;
+
+    // a change of the element shows it anew, and is no reason to open what the user closed
+    changeInput(input('ServiceTask_MultiInstance', 'retries'), '5');
+    await act(() => {});
+    expect(groupIsOpen(), 'after a change of the element').to.be.false;
+
+    await select(elementRegistry, selection, 'ServiceTask_Chain');
+    expect(groupIsOpen(), 'on an element without a flagged listener').to.be.false;
+
+    await select(elementRegistry, selection, 'ServiceTask_BackoffExpression');
+    expect(groupIsOpen(), 'on the next element with a flagged listener').to.be.true;
   }));
 
   it('should mark the group for a missing type as well, until it is entered', inject(async function(elementRegistry, selection) {
@@ -768,6 +826,34 @@ describe('provider/zenbpm - execution listeners', function() {
 
     await act(() => commandStack.redo());
     expect(getListeners(event)[0].eventType).to.equal('end');
+  }));
+});
+
+describe('provider/zenbpm - execution listeners, with the input debounce of a host', function() {
+  let container: HTMLElement;
+
+  beforeEach(function() {
+    container = TestContainer.get(this);
+  });
+
+  beforeEach(bootstrapZenBpmPropertiesPanel(diagramXML, { debounceInput: true }));
+
+  it('should keep the field in view, with the focus, once the value typed so far corrects the last flagged one', inject(async function(elementRegistry, selection) {
+    await act(() => selection.select(elementRegistry.get('ServiceTask_BackoffExpression')));
+    const group = findGroup(container, GROUP);
+    await act(() => (domQuery('.bio-properties-panel-collapsible-entry-header', group) as HTMLElement).click());
+    const backoff = domQuery(`[name="${entryId('ServiceTask_BackoffExpression', 0, 'retryBackoff')}"]`, container) as HTMLInputElement;
+
+    await act(() => backoff.focus());
+    changeInput(backoff, 'PT1S');
+    // the panel takes the value once the user has paused; the user types on afterwards
+    await act(() => new Promise((resolve) => setTimeout(resolve, 800)));
+    await act(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+
+    expect(elementRegistry.get('ServiceTask_BackoffExpression').businessObject.extensionElements.values[0].listeners[0].get('retryBackoff')).to.equal('PT1S');
+    expect(domQuery('.bio-properties-panel-list.open', group), 'the group').to.exist;
+    expect(backoff.getClientRects().length > 0, 'the field in view').to.be.true;
+    expect(document.activeElement, 'the focus').to.equal(backoff);
   }));
 });
 
