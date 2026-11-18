@@ -442,6 +442,26 @@ describe('provider/zenbpm - execution listeners', function() {
     expect(errorOf(type(2)), 'second start listener once the types differ').not.to.exist;
   }));
 
+  it('should show the reason of the value typed over one the model came with, and none once it is corrected', inject(async function(elementRegistry, selection) {
+    const task = await select(elementRegistry, selection, 'ServiceTask_Duplicate');
+    const type = () => input('ServiceTask_Duplicate', 'type', 2);
+    expect(errorOf(type())?.textContent, 'as the model came').to.match(/^Enter another job type/);
+
+    // a value the engine refuses for another reason is kept as typed, with its own reason
+    changeInput(type(), '=jobType');
+    await act(() => {});
+    expect(errorOf(type())?.textContent, 'an expression typed over it').to.equal('Enter the job type as a literal: a listener takes no FEEL expression');
+    expect(getListeners(task)[2].type).to.equal('=jobType');
+
+    changeInput(type(), 'audit');
+    await act(() => {});
+    expect(errorOf(type())?.textContent, 'the type of the first start listener typed over it').to.match(/^Enter another job type/);
+
+    changeInput(type(), 'audit-credit');
+    await act(() => {});
+    expect(errorOf(type()), 'once corrected').not.to.exist;
+  }));
+
   it('should flag a listener on an element without an outgoing sequence flow, as flows are drawn, undone and redone', inject(async function(elementRegistry, selection, modeling, commandStack) {
     const task = await select(elementRegistry, selection, 'ServiceTask_NoOutgoing');
     const error = () => errorOf(input('ServiceTask_NoOutgoing', 'eventType'))?.textContent;
