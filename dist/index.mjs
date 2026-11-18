@@ -1640,6 +1640,7 @@ const TASKS_WHOSE_WORK_IS_ALWAYS_ONE_JOB = new Set([
     'bpmn:UserTask',
 ]);
 const MAX_INT32 = 2147483647;
+const MAX_INT64 = '9223372036854775807';
 // One duration of a retry backoff as the engine reads it: whole numbers, the
 // units in this order, the time units behind a `T`. Years and months parse,
 // so that they can be refused with a reason of their own.
@@ -1813,9 +1814,13 @@ function validateListenerPlacement(element, eventType) {
             : { template: 'Choose End: a start event takes only end listeners' };
     }
     // The engine follows the `outgoing` references of the element, which the
-    // modeler keeps in step with its sequence flows.
+    // modeler keeps in step with the sequence flows it draws. A model from
+    // elsewhere can come with a flow its source does not name: drawn as every
+    // other, and still none to the engine.
     if ((element.businessObject.get('outgoing') || []).length === 0) {
-        return { template: 'Connect an outgoing sequence flow: the token could not leave the element once the listener\'s job is completed' };
+        return (element.outgoing || []).some((connection) => connection.type === 'bpmn:SequenceFlow')
+            ? { template: 'Draw the outgoing sequence flow again: the model does not name it as outgoing of this element, which is what the engine follows' }
+            : { template: 'Connect an outgoing sequence flow: the token could not leave the element once the listener\'s job is completed' };
     }
     return null;
 }
@@ -1877,6 +1882,11 @@ function validateListenerRetries(value) {
     }
     return null;
 }
+/** Whether the engine can read the digits as a number, which it holds in 64 bits. */
+function fitsInto64Bits(digits) {
+    const significant = digits.replace(/^0+/, '');
+    return significant.length < MAX_INT64.length || (significant.length === MAX_INT64.length && significant <= MAX_INT64);
+}
 /**
  * The engine reads the retry backoff as one ISO-8601 duration or several
  * separated by commas, one for each failure, and refuses a deployment with
@@ -1893,6 +1903,9 @@ function validateListenerRetryBackoff(value) {
         const parts = BACKOFF_DURATION.exec(duration);
         if (!parts || duration === 'P' || duration.endsWith('T')) {
             return { template: 'Enter an ISO-8601 duration such as PT10S, or several separated by commas' };
+        }
+        if (!(duration.match(/\d+/g) ?? []).every(fitsInto64Bits)) {
+            return { template: 'Enter smaller numbers: the engine reads none above {max}', replacements: { max: MAX_INT64 } };
         }
         if (Number(parts[1] ?? 0) !== 0 || Number(parts[2] ?? 0) !== 0) {
             return { template: 'Enter the retry backoff in weeks, days, hours, minutes or seconds: the length of a year or a month depends on the date' };
@@ -2077,7 +2090,7 @@ function RetriesEntry(props) {
         element,
         id,
         label: translate('Retries'),
-        description: translate('Optional; the engine default when empty.'),
+        description: translate('Optional; the engine default when empty. The engine lowers a number above its configured maximum to that maximum.'),
         getValue: () => listener.retries || undefined,
         setValue: (value) => updateListener(element, listener, { retries: value && value.trim() !== '' ? value : undefined }, commandStack),
         validate: (value) => translated(translate, validateAttribute(element, () => validateListenerRetries(value))),

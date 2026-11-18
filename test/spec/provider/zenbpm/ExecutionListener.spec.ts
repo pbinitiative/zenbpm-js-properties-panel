@@ -399,6 +399,14 @@ describe('provider/zenbpm - execution listeners', function() {
     }
   }));
 
+  it('should say that the engine lowers retries above its maximum, which the panel does not know', inject(async function(elementRegistry, selection) {
+    await select(elementRegistry, selection, 'StartEvent_Listener');
+
+    expect(descriptionOf(input('StartEvent_Listener', 'retries'))).to.equal(
+      'Optional; the engine default when empty. The engine lowers a number above its configured maximum to that maximum.'
+    );
+  }));
+
   it('should add no undo step when an empty Retries field is left untouched', inject(async function(elementRegistry, selection, commandStack) {
     await select(elementRegistry, selection, 'StartEvent_OnlyListener');
 
@@ -852,7 +860,13 @@ describe('provider/zenbpm - execution listeners', function() {
       await act(() => {});
       expect(errorOf(backoff())?.textContent, value).to.equal('Enter an ISO-8601 duration such as PT10S, or several separated by commas');
     }
-    for (const value of [ 'PT0S', 'P1W2D', 'P1DT1H1M1S', 'PT10S, PT1M' ]) {
+    // the engine reads each number into 64 bits, and refuses the deployment with one beyond them
+    for (const value of [ 'PT99999999999999999999S', 'P9223372036854775808D', 'PT10S,PT9223372036854775808M' ]) {
+      changeInput(backoff(), value);
+      await act(() => {});
+      expect(errorOf(backoff())?.textContent, value).to.equal('Enter smaller numbers: the engine reads none above 9223372036854775807');
+    }
+    for (const value of [ 'PT0S', 'P1W2D', 'P1DT1H1M1S', 'PT9223372036854775807S', 'PT0009223372036854775807S', 'PT10S, PT1M' ]) {
       changeInput(backoff(), value);
       await act(() => {});
       expect(errorOf(backoff()), value).not.to.exist;
@@ -1040,6 +1054,26 @@ describe('provider/zenbpm - listeners the engine reads nowhere', function() {
     expect(group(), 'execution listeners group').not.to.exist;
   }));
 
+  it('should tell a drawn sequence flow the model does not name as outgoing from a missing one', inject(async function(elementRegistry, selection, modeling) {
+    const task = await select(elementRegistry, selection, 'ServiceTask_FlowWithoutOutgoing');
+    const error = () => domQuery(
+      '.bio-properties-panel-error',
+      (domQuery(`[name="${entryId('ServiceTask_FlowWithoutOutgoing', 0, 'eventType')}"]`, container) as HTMLElement).closest('.bio-properties-panel-entry') as HTMLElement
+    )?.textContent;
+    expect(task.outgoing, 'the flow as drawn').to.have.length(1);
+    expect(task.businessObject.get('outgoing'), 'the flows the task names, which the engine follows').to.have.length(0);
+
+    expect(error()).to.equal(
+      'Draw the outgoing sequence flow again: the model does not name it as outgoing of this element, which is what the engine follows'
+    );
+
+    await act(() => modeling.removeConnection(task.outgoing[0]));
+    expect(error(), 'without a flow').to.match(/^Connect an outgoing sequence flow/);
+
+    await act(() => modeling.connect(task, elementRegistry.get('EndEvent_1')));
+    expect(error(), 'once drawn again').not.to.exist;
+  }));
+
   it('should flag a task listener on the process, and note an execution listener outside its element there as ignored', inject(async function(canvas, selection) {
     await act(() => selection.select([]));
     const process = canvas.getRootElement();
@@ -1135,6 +1169,22 @@ describe('provider/zenbpm - execution listeners, translated', function() {
     const group = findGroup(container, GROUP);
     expect(domQuery('.bio-properties-panel-group-header-title', group)?.textContent).to.equal('[Execution listeners]');
     expect(domQuery('.bio-properties-panel-collapsible-entry-header-title', group)?.textContent).to.equal('[[Start]: reserve-stock]');
+  }));
+
+  it('should translate the mark of a flagged listener, an event type shown as written and the note on a listener of the process', inject(async function(elementRegistry, selection) {
+    const firstLabel = () => domQuery('.bio-properties-panel-collapsible-entry-header-title', findGroup(container, GROUP))?.textContent;
+
+    await act(() => selection.select(elementRegistry.get('ServiceTask_Duplicate')));
+    expect(firstLabel()).to.equal('[⚠ [[Start]: audit]]');
+
+    await act(() => selection.select(elementRegistry.get('ServiceTask_UnknownEventType')));
+    expect(firstLabel()).to.equal('[⚠ [["End"]: audit]]');
+
+    await act(() => selection.select([]));
+    const eventType = (domQuery(`[name="${entryId('Process_1', 0, 'eventType')}"]`, container) as HTMLElement).closest('.bio-properties-panel-entry') as HTMLElement;
+    expect(domQuery('.bio-properties-panel-description', eventType)?.textContent).to.equal(
+      '[The engine runs no listener on the process itself and ignores this one. It can be removed.]'
+    );
   }));
 });
 
