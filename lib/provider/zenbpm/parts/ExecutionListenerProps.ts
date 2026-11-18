@@ -584,14 +584,16 @@ export function createExecutionListenerGroup(element: any, injector: any): any |
 
 // ─── keeping the panel in step ───────────────────────────────────────────────
 
-const SEQUENCE_FLOW_COMMANDS = [ 'connection.create', 'connection.delete', 'connection.reconnect' ];
+const CONNECTION_COMMANDS = [ 'connection.create', 'connection.delete', 'connection.reconnect' ];
 
 /**
  * Whether a listener can run depends on the outgoing sequence flows of its
  * element. The modeler reports a drawn, removed or reconnected flow as a
  * change of the flow alone, also when the change is undone or redone, so the
  * panel would keep showing what held before for the element it has open. This
- * reports the elements such a flow left or leaves as changed as well.
+ * reports the elements such a flow left or leaves as changed as well. Another
+ * connection, such as a message flow or an association, says nothing about a
+ * listener, so its ends are left alone.
  */
 export function reportSourcesOfChangedSequenceFlows(injector: any): void {
   const eventBus        = injector.get('eventBus');
@@ -599,12 +601,13 @@ export function reportSourcesOfChangedSequenceFlows(injector: any): void {
 
   let sources: any[] = [];
 
-  const events = SEQUENCE_FLOW_COMMANDS.flatMap((command) => [
+  const events = CONNECTION_COMMANDS.flatMap((command) => [
     `commandStack.${command}.executed`,
     `commandStack.${command}.reverted`,
   ]);
   eventBus.on(events, ({ context }: any) => {
-    sources.push(context.source, context.oldSource, context.newSource, context.connection?.source);
+    if (context.connection?.type !== 'bpmn:SequenceFlow') return;
+    sources.push(context.source, context.oldSource, context.newSource, context.connection.source);
   });
 
   // fired once the modeler has reported the changes of the command itself

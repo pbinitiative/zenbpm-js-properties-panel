@@ -10,6 +10,8 @@ export declare function createExecutionListenerGroup(element: any, injector: any
  * element. The modeler reports a drawn, removed or reconnected flow as a
  * change of the flow alone, also when the change is undone or redone, so the
  * panel would keep showing what held before for the element it has open. This
- * reports the elements such a flow left or leaves as changed as well.
+ * reports the elements such a flow left or leaves as changed as well. Another
+ * connection, such as a message flow or an association, says nothing about a
+ * listener, so its ends are left alone.
  */
 export declare function reportSourcesOfChangedSequenceFlows(injector: any): void;

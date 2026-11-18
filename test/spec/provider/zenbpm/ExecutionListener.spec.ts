@@ -480,6 +480,23 @@ describe('provider/zenbpm - execution listeners', function() {
     expect(errorOf(input('ServiceTask_Chain', 'eventType'))?.textContent).to.match(/^Connect an outgoing sequence flow/);
   }));
 
+  it('should report the source of a drawn sequence flow as changed, and of no other connection', inject(async function(elementRegistry, modeling, eventBus) {
+    const task = elementRegistry.get('ServiceTask_NoOutgoing');
+    const annotation = modeling.createShape({ type: 'bpmn:TextAnnotation' }, { x: 150, y: 480 }, task.parent);
+    let reportsOfTheTask = 0;
+    eventBus.on('elements.changed', ({ elements }: any) => {
+      if (elements.includes(task)) reportsOfTheTask++;
+    });
+
+    const association = modeling.connect(task, annotation);
+    expect(association.type).to.equal('bpmn:Association');
+    expect(reportsOfTheTask, 'an association says nothing about the listeners of its source').to.equal(0);
+
+    const flow = modeling.connect(task, elementRegistry.get('EndEvent_1'));
+    expect(flow.type).to.equal('bpmn:SequenceFlow');
+    expect(reportsOfTheTask, 'a sequence flow lets the listeners of its source run').to.equal(1);
+  }));
+
   it('should show a listener on a multi-instance activity with the reason, and offer no further one', inject(async function(elementRegistry, selection) {
     await select(elementRegistry, selection, 'ServiceTask_MultiInstance');
 
