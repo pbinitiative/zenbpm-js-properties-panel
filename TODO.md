@@ -74,7 +74,7 @@ them) or, in some cases, a deploy error.
 |---|---|
 | `zenbpm:Script` (ScriptTask implementation) | Engine explicitly rejects `bpmn:ScriptTask` at deploy (`unsupported_elements_test.go`) |
 | `zenbpm:AdHoc` (ad-hoc sub-process) | Engine has no `AdHoc` references in `pkg/bpmn/...` |
-| `zenbpm:TaskListener(s)` | Engine refuses a task listener at deployment |
+| `zenbpm:TaskListener(s)` | Engine refuses a task listener at deployment. None can be created; one a model came with is listed in the `Execution listeners` group with that reason, to be removed |
 | `zenbpm:ConditionalFilter` (conditional events) | Not present in engine source |
 | `zeebe:*` / camunda-cloud-only types | Out of scope — this package emits `zenbpm:*` only |
 
@@ -91,13 +91,16 @@ normalization:
   `zeebe:LoopCharacteristics`, `zeebe:Subscription`, `zeebe:FormDefinition`
   is rewritten to its `zenbpm:` equivalent and round-trips correctly.
 - Camunda-only types that have no `zenbpm:` counterpart (e.g. zeebe
-  `Header` / `Property` / `Script` / `AdHoc` / `TaskListener` /
-  `ConditionalFilter`) are passed through verbatim —
+  `Header` / `Property` / `Script` / `AdHoc` / `ConditionalFilter`) are
+  passed through verbatim —
   the editor does not surface them, but they are not corrupted on
   re-export either. Deploying such a file to the current ZenBPM engine
   will either silently drop the extension or, in the case of `Script` /
   `Signal` / `ReceiveTask`, fail at deploy time — which is a property of
   the engine, not the editor.
+- A zeebe `TaskListener` is passed through verbatim as well, and the
+  engine refuses a deployment with one. The editor does surface it, in
+  the `Execution listeners` group, with that reason and a delete button.
 
 ---
 

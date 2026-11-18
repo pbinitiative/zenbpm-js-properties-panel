@@ -135,6 +135,43 @@ function getListeners(bo: any): any[] {
   return listenerContainersOf(bo).flatMap((container: any) => container.listeners || []);
 }
 
+/** The name of an extension element as the XML writes it, without its prefix: `taskListeners` for `zenbpm:TaskListeners`. */
+function xmlNameOf(extensionElement: any): string {
+  const name: string = (extensionElement.$type ?? '').split(':').pop();
+  return name.charAt(0).toLowerCase() + name.slice(1);
+}
+
+/** A listener the engine reads nowhere, with the `taskListeners` element it sits in, if it sits in one. */
+interface ListenerNotRead {
+  listener: any;
+  container?: any;
+  isTaskListener: boolean;
+}
+
+/**
+ * The listeners of the business object which the engine reads nowhere, in
+ * the order of the model: every task listener, and an execution listener
+ * directly in the extension elements, outside an `executionListeners`
+ * element, which is where Camunda 7 writes one. The engine refuses a model
+ * with any of them, but for such an execution listener on the process, which
+ * it ignores. As the engine, this goes by the name of the XML element,
+ * whatever its prefix.
+ */
+function listenersNotReadOf(bo: any): ListenerNotRead[] {
+  return (bo?.extensionElements?.values || []).flatMap((value: any): ListenerNotRead[] => {
+    switch (xmlNameOf(value)) {
+    case 'taskListeners':
+      return (value.listeners || []).map((listener: any) => ({ listener, container: value, isTaskListener: true }));
+    case 'taskListener':
+      return [ { listener: value, isTaskListener: true } ];
+    case 'executionListener':
+      return [ { listener: value, isTaskListener: false } ];
+    default:
+      return [];
+    }
+  });
+}
+
 /**
  * The retry backoff of a listener, which the engine reads. The panel offers
  * none to enter, but a model can carry one, as an attribute the moddle
@@ -215,6 +252,18 @@ function validateListenerPlacement(element: any, eventType: string | undefined):
 }
 
 /**
+ * Why the engine refuses a model with the listener it reads nowhere, or null
+ * for the one it ignores: an execution listener on the process.
+ */
+function whyTheEngineRefuses(element: any, { isTaskListener }: ListenerNotRead): ValidationMessage | null {
+  if (isTaskListener) {
+    return { template: 'Remove this listener: the engine runs no task listener' };
+  }
+  if (isProcess(element)) return null;
+  return { template: 'Remove this listener: the engine refuses an execution listener outside an executionListeners element' };
+}
+
+/**
  * Whether another listener of the element has the same event type and the
  * same job type. The engine compares the job types without surrounding
  * whitespace, which a worker could not tell apart.
@@ -292,6 +341,17 @@ function translated(translate: any, message: ValidationMessage | null): string |
   return message ? translate(message.template, message.replacements) : null;
 }
 
+/**
+ * How the list names a listener the engine reads nowhere. One of another
+ * engine names its code where a listener of this engine names its job type.
+ */
+function labelOfAListenerNotRead(translate: any, { listener, isTaskListener }: ListenerNotRead): string {
+  const type = listener.type || listener.class || listener.delegateExpression || listener.expression || translate('<no type>');
+  return isTaskListener
+    ? translate('Task listener "{eventType}": {type}', { eventType: listener.eventType ?? listener.event ?? '', type })
+    : translate('Listener outside executionListeners: {type}', { type });
+}
+
 /** The event type as the panel words it; one of another engine keeps its own word. */
 function eventTypeLabel(translate: any, eventType: string | undefined): string {
   if (eventType === START_EVENT_TYPE) return translate('Start');
@@ -350,8 +410,20 @@ function createListenerContainer(element: any, bo: any, bpmnFactory: any, comman
 function removeListener(element: any, listener: any, commandStack: any): void {
   const bo = listenerOwnerOf(element);
   const container = listenerContainersOf(bo).find((candidate: any) => (candidate.listeners || []).includes(listener));
-  if (!container) return;
+  if (container) removeFromContainer(element, bo, container, listener, commandStack);
+}
 
+/** Remove a listener the engine reads nowhere, and the `taskListeners` element it was the last of. */
+function removeListenerNotRead(element: any, { listener, container }: ListenerNotRead, commandStack: any): void {
+  const bo = listenerOwnerOf(element);
+  if (container) {
+    removeFromContainer(element, bo, container, listener, commandStack);
+  } else {
+    removeExtensionValue(element, bo, listener, commandStack);
+  }
+}
+
+function removeFromContainer(element: any, bo: any, container: any, listener: any, commandStack: any): void {
   const remaining = container.listeners.filter((value: any) => value !== listener);
   if (remaining.length === 0) {
     removeExtensionValue(element, bo, container, commandStack);
@@ -476,6 +548,23 @@ function RetryBackoffEntry(props: any) {
   });
 }
 
+/**
+ * The one entry of a listener the engine reads nowhere: why the engine
+ * refuses the model with it, or that the engine ignores it. Such a listener
+ * has nothing to edit which would make the engine read it, so it is shown to
+ * be removed.
+ */
+function ListenerNotReadEntry(props: any) {
+  const { id, reason, note } = props;
+  return createElement(
+    'div',
+    { class: reason ? 'bio-properties-panel-entry has-error' : 'bio-properties-panel-entry', 'data-entry-id': id },
+    reason
+      ? createElement('div', { class: 'bio-properties-panel-error' }, reason)
+      : createElement('div', { class: 'bio-properties-panel-description' }, note),
+  );
+}
+
 // The panel offers no retry backoff to enter. A listener which came with one
 // shows it, so that one the engine refuses can be seen, corrected or cleared;
 // its field stays while it is being edited, an emptied one included.
@@ -542,14 +631,16 @@ function ExecutionListenersGroup(props: any) {
 /**
  * The Execution listeners group: offered where the engine runs listeners,
  * where one more listener can always be created behind the ones there, and
- * shown on any element that has listeners, so that one the engine refuses or
- * ignores there can be removed. Null when neither applies.
+ * shown on any element that has listeners, those the engine reads nowhere
+ * included, so that one the engine refuses or ignores there can be removed.
+ * Null when neither applies.
  */
 export function createExecutionListenerGroup(element: any, injector: any): any | null {
   const owner = listenerOwnerOf(element);
   const listeners = getListeners(owner);
+  const listenersNotRead = listenersNotReadOf(owner);
   const eventTypes = listenerEventTypesRunOn(element);
-  if (eventTypes.length === 0 && listeners.length === 0) return null;
+  if (eventTypes.length === 0 && listeners.length === 0 && listenersNotRead.length === 0) return null;
 
   const commandStack = injector.get('commandStack');
   const bpmnFactory  = injector.get('bpmnFactory');
@@ -592,6 +683,20 @@ export function createExecutionListenerGroup(element: any, injector: any): any |
     };
   });
 
+  // Behind them, the listeners the engine reads nowhere, each with the reason
+  // or the note as its one entry.
+  const itemsOfListenersNotRead = listenersNotRead.map((listenerNotRead: ListenerNotRead, index: number) => {
+    const entryId = `${element.id}-zenbpm-listenerNotRead-${index}-reason`;
+    const reason = translated(translate, whyTheEngineRefuses(element, listenerNotRead));
+    if (reason) listenerErrors[entryId] = reason;
+    return {
+      id: `${element.id}-zenbpm-executionListener-item-${itemNumberOf(owner, listenerNotRead.listener)}`,
+      label: labelOfAListenerNotRead(translate, listenerNotRead),
+      entries: [ { id: entryId, component: ListenerNotReadEntry, reason, note: translate(NOTE_ON_A_LISTENER_OF_THE_PROCESS) } ],
+      remove: () => removeListenerNotRead(element, listenerNotRead, commandStack),
+    };
+  });
+
   // The engine runs the listeners of one event type in the order of the model,
   // so a new one goes behind the others, with the first event type the element
   // takes: `start` on a task, `end` on a start event.
@@ -606,7 +711,7 @@ export function createExecutionListenerGroup(element: any, injector: any): any |
     id: EXECUTION_LISTENER_GROUP_ID,
     label: translate('Execution listeners'),
     component: ExecutionListenersGroup,
-    items,
+    items: [ ...items, ...itemsOfListenersNotRead ],
     add,
     listenerErrors,
   };

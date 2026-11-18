@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:zenbpm="http://zenbpm.pbinitiative.org/1.0"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  id="Definitions_1"
+                  targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1" isExecutable="true">
+    <bpmn:extensionElements>
+      <camunda:executionListener event="start" class="com.acme.ProcessStarted" />
+      <zenbpm:taskListeners>
+        <zenbpm:taskListener eventType="creating" type="process-task" />
+      </zenbpm:taskListeners>
+    </bpmn:extensionElements>
+    <bpmn:userTask id="UserTask_TaskListeners" name="Task listeners beside an execution listener">
+      <bpmn:extensionElements>
+        <zenbpm:executionListeners>
+          <zenbpm:executionListener eventType="start" type="audit" />
+        </zenbpm:executionListeners>
+        <zenbpm:taskListeners>
+          <zenbpm:taskListener eventType="creating" type="assign-reviewer" />
+          <zenbpm:taskListener eventType="completing" type="notify-reviewer" retries="3" />
+        </zenbpm:taskListeners>
+        <zenbpm:ioMapping>
+          <zenbpm:output source="=orderId" target="orderId" />
+        </zenbpm:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_UserTask_TaskListeners</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="Flow_UserTask_TaskListeners" sourceRef="UserTask_TaskListeners" targetRef="EndEvent_1" />
+    <bpmn:userTask id="UserTask_OnlyTaskListener" name="Only a task listener">
+      <bpmn:extensionElements>
+        <zenbpm:taskListeners>
+          <zenbpm:taskListener eventType="assigning" type="assign-reviewer" />
+        </zenbpm:taskListeners>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_UserTask_OnlyTaskListener</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="Flow_UserTask_OnlyTaskListener" sourceRef="UserTask_OnlyTaskListener" targetRef="EndEvent_1" />
+    <bpmn:serviceTask id="ServiceTask_Camunda7Listener" name="Listener in the shape of Camunda 7">
+      <bpmn:extensionElements>
+        <camunda:executionListener event="start" class="com.acme.Audit" />
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_ServiceTask_Camunda7Listener</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_ServiceTask_Camunda7Listener" sourceRef="ServiceTask_Camunda7Listener" targetRef="EndEvent_1" />
+    <bpmn:serviceTask id="ServiceTask_ListenerOutsideItsElement" name="Listener outside an executionListeners element">
+      <bpmn:extensionElements>
+        <zenbpm:executionListener eventType="start" type="audit" />
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_ServiceTask_ListenerOutsideItsElement</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_ServiceTask_ListenerOutsideItsElement" sourceRef="ServiceTask_ListenerOutsideItsElement" targetRef="EndEvent_1" />
+    <bpmn:exclusiveGateway id="Gateway_Camunda7Listener" name="Gateway with a listener in the shape of Camunda 7">
+      <bpmn:extensionElements>
+        <camunda:executionListener event="start" expression="${audit}" />
+      </bpmn:extensionElements>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="ServiceTask_FlowWithoutOutgoing" name="A flow the task does not name">
+      <bpmn:extensionElements>
+        <zenbpm:executionListeners>
+          <zenbpm:executionListener eventType="start" type="audit" />
+        </zenbpm:executionListeners>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_ServiceTask_FlowWithoutOutgoing" sourceRef="ServiceTask_FlowWithoutOutgoing" targetRef="EndEvent_1" />
+    <bpmn:endEvent id="EndEvent_1" name="End">
+      <bpmn:incoming>Flow_UserTask_TaskListeners</bpmn:incoming>
+      <bpmn:incoming>Flow_UserTask_OnlyTaskListener</bpmn:incoming>
+      <bpmn:incoming>Flow_ServiceTask_Camunda7Listener</bpmn:incoming>
+      <bpmn:incoming>Flow_ServiceTask_ListenerOutsideItsElement</bpmn:incoming>
+      <bpmn:incoming>Flow_ServiceTask_FlowWithoutOutgoing</bpmn:incoming>
+    </bpmn:endEvent>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="UserTask_TaskListeners_di" bpmnElement="UserTask_TaskListeners">
+        <dc:Bounds x="100" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_OnlyTaskListener_di" bpmnElement="UserTask_OnlyTaskListener">
+        <dc:Bounds x="100" y="200" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_Camunda7Listener_di" bpmnElement="ServiceTask_Camunda7Listener">
+        <dc:Bounds x="100" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_ListenerOutsideItsElement_di" bpmnElement="ServiceTask_ListenerOutsideItsElement">
+        <dc:Bounds x="100" y="440" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Camunda7Listener_di" bpmnElement="Gateway_Camunda7Listener" isMarkerVisible="true">
+        <dc:Bounds x="125" y="560" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_FlowWithoutOutgoing_di" bpmnElement="ServiceTask_FlowWithoutOutgoing">
+        <dc:Bounds x="100" y="660" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_1_di" bpmnElement="EndEvent_1">
+        <dc:Bounds x="500" y="342" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_UserTask_TaskListeners_di" bpmnElement="Flow_UserTask_TaskListeners">
+        <di:waypoint x="200" y="120" />
+        <di:waypoint x="500" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_UserTask_OnlyTaskListener_di" bpmnElement="Flow_UserTask_OnlyTaskListener">
+        <di:waypoint x="200" y="240" />
+        <di:waypoint x="500" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ServiceTask_Camunda7Listener_di" bpmnElement="Flow_ServiceTask_Camunda7Listener">
+        <di:waypoint x="200" y="360" />
+        <di:waypoint x="500" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ServiceTask_ListenerOutsideItsElement_di" bpmnElement="Flow_ServiceTask_ListenerOutsideItsElement">
+        <di:waypoint x="200" y="480" />
+        <di:waypoint x="500" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ServiceTask_FlowWithoutOutgoing_di" bpmnElement="Flow_ServiceTask_FlowWithoutOutgoing">
+        <di:waypoint x="200" y="700" />
+        <di:waypoint x="500" y="360" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

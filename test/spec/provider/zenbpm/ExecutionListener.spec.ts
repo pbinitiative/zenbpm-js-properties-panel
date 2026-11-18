@@ -14,6 +14,7 @@ import {
 
 import diagramXML from './fixtures/ExecutionListener.bpmn';
 import collaborationXML from './fixtures/ExecutionListenerCollaboration.bpmn';
+import otherShapesXML from './fixtures/ExecutionListenerOtherShapes.bpmn';
 
 const GROUP = 'zenbpm-executionListener';
 
@@ -861,6 +862,179 @@ describe('provider/zenbpm - execution listeners', function() {
 
     await act(() => commandStack.redo());
     expect(getListeners(event)[0].eventType).to.equal('end');
+  }));
+});
+
+describe('provider/zenbpm - listeners the engine reads nowhere', function() {
+  let container: HTMLElement;
+
+  beforeEach(function() {
+    container = TestContainer.get(this);
+  });
+
+  beforeEach(bootstrapZenBpmPropertiesPanel(otherShapesXML));
+
+  const TASK_LISTENER_REASON = 'Remove this listener: the engine runs no task listener';
+  const OUTSIDE_REASON = 'Remove this listener: the engine refuses an execution listener outside an executionListeners element';
+
+  async function select(elementRegistry: any, selection: any, id: string) {
+    const element = elementRegistry.get(id);
+    await act(() => selection.select(element));
+    return element;
+  }
+
+  function group() {
+    return findGroup(container, GROUP);
+  }
+
+  function addButton() {
+    return domQuery('.bio-properties-panel-add-entry', group()) as HTMLButtonElement | null;
+  }
+
+  function itemLabels() {
+    return Array.from(domQueryAll('.bio-properties-panel-collapsible-entry-header-title', group()))
+      .map((title) => title.textContent);
+  }
+
+  // The one entry of a listener the engine does not read: why, and nothing to edit.
+  function reasonEntry(elementId: string, index = 0) {
+    return domQuery(`[data-entry-id="${elementId}-zenbpm-listenerNotRead-${index}-reason"]`, container) as HTMLElement;
+  }
+
+  function errorIn(entry: HTMLElement) {
+    return domQuery('.bio-properties-panel-error', entry)?.textContent;
+  }
+
+  function noteIn(entry: HTMLElement) {
+    return domQuery('.bio-properties-panel-description', entry)?.textContent;
+  }
+
+  function hasErrorBadge() {
+    return domQuery('.bio-properties-panel-list-badge--error', group()) !== null;
+  }
+
+  async function removeItem(index = 0) {
+    await act(() => (domQueryAll('.bio-properties-panel-remove-entry', group())[index] as HTMLButtonElement).click());
+  }
+
+  async function elementXml(id: string) {
+    const { xml } = await getBpmnJS().saveXML({ format: true });
+    return xml.match(new RegExp(`<bpmn:(\\w+) id="${id}"[\\s\\S]*?</bpmn:\\1>`))?.[0];
+  }
+
+  it('should list the task listeners of a user task behind its execution listeners, each with the reason the engine refuses it', inject(async function(elementRegistry, selection) {
+    await select(elementRegistry, selection, 'UserTask_TaskListeners');
+
+    expect(itemLabels()).to.eql([
+      'Start: audit',
+      'Task listener "creating": assign-reviewer',
+      'Task listener "completing": notify-reviewer',
+    ]);
+    expect(errorIn(reasonEntry('UserTask_TaskListeners', 0))).to.equal(TASK_LISTENER_REASON);
+    expect(errorIn(reasonEntry('UserTask_TaskListeners', 1))).to.equal(TASK_LISTENER_REASON);
+    expect(domQueryAll('input, select', reasonEntry('UserTask_TaskListeners', 0)), 'nothing to edit').to.have.length(0);
+    expect(hasErrorBadge(), 'badge of the group').to.be.true;
+    expect(domQuery('.bio-properties-panel-list.open', group()), 'the group opens by itself').to.exist;
+    expect(addButton(), 'an execution listener can still be created').to.exist;
+  }));
+
+  it('should remove one task listener and keep the other, then the emptied taskListeners element, and undo both', inject(async function(elementRegistry, selection, commandStack) {
+    const task = await select(elementRegistry, selection, 'UserTask_TaskListeners');
+
+    await removeItem(1);
+
+    expect(itemLabels()).to.eql([ 'Start: audit', 'Task listener "completing": notify-reviewer' ]);
+    expect(await elementXml('UserTask_TaskListeners')).to.match(
+      /<zenbpm:taskListeners>\s*<zenbpm:taskListener [^>]*type="notify-reviewer"[^>]*\/>\s*<\/zenbpm:taskListeners>/
+    );
+
+    await removeItem(1);
+
+    const xml = await elementXml('UserTask_TaskListeners');
+    expect(xml).not.to.contain('taskListener');
+    expect(xml, 'the execution listener stays').to.contain('<zenbpm:executionListener eventType="start" type="audit" />');
+    expect(xml, 'the other extensions stay').to.contain('<zenbpm:output source="=orderId" target="orderId" />');
+    expect(hasErrorBadge(), 'badge of the group').to.be.false;
+
+    await act(() => commandStack.undo());
+    await act(() => commandStack.undo());
+
+    expect(task.businessObject.extensionElements.values[1].listeners).to.have.length(2);
+    expect(itemLabels()).to.have.length(3);
+  }));
+
+  it('should leave no empty extension elements behind when the only task listener is removed', inject(async function(elementRegistry, selection) {
+    const task = await select(elementRegistry, selection, 'UserTask_OnlyTaskListener');
+    expect(itemLabels()).to.eql([ 'Task listener "assigning": assign-reviewer' ]);
+
+    await removeItem();
+
+    expect(task.businessObject.extensionElements, 'extension elements').to.be.undefined;
+    expect(itemLabels()).to.have.length(0);
+    expect(addButton(), 'an execution listener can be created').to.exist;
+  }));
+
+  it('should list an execution listener in the shape of Camunda 7 with the reason, so that it can be removed', inject(async function(elementRegistry, selection) {
+    const task = await select(elementRegistry, selection, 'ServiceTask_Camunda7Listener');
+
+    expect(itemLabels()).to.eql([ 'Listener outside executionListeners: com.acme.Audit' ]);
+    expect(errorIn(reasonEntry('ServiceTask_Camunda7Listener'))).to.equal(OUTSIDE_REASON);
+    expect(hasErrorBadge(), 'badge of the group').to.be.true;
+
+    await removeItem();
+
+    expect(task.businessObject.extensionElements, 'extension elements').to.be.undefined;
+    expect(await elementXml('ServiceTask_Camunda7Listener')).not.to.contain('executionListener');
+  }));
+
+  it('should list an execution listener outside an executionListeners element with the reason, beside one created where the engine reads it', inject(async function(elementRegistry, selection) {
+    await select(elementRegistry, selection, 'ServiceTask_ListenerOutsideItsElement');
+    expect(itemLabels()).to.eql([ 'Listener outside executionListeners: audit' ]);
+    expect(errorIn(reasonEntry('ServiceTask_ListenerOutsideItsElement'))).to.equal(OUTSIDE_REASON);
+
+    await act(() => addButton()!.click());
+    changeInput(domQuery(`[name="${entryId('ServiceTask_ListenerOutsideItsElement', 0, 'type')}"]`, container), 'reserve-stock');
+    await act(() => {});
+
+    expect(itemLabels()).to.eql([ 'Start: reserve-stock', 'Listener outside executionListeners: audit' ]);
+    expect(await elementXml('ServiceTask_ListenerOutsideItsElement')).to.match(
+      /<zenbpm:executionListener eventType="start" type="audit" \/>\s*<zenbpm:executionListeners>\s*<zenbpm:executionListener eventType="start" type="reserve-stock" \/>/
+    );
+  }));
+
+  it('should show the group on an element which takes no listener but carries one the engine refuses, until it is removed', inject(async function(elementRegistry, selection) {
+    await select(elementRegistry, selection, 'Gateway_Camunda7Listener');
+
+    expect(group(), 'execution listeners group').to.exist;
+    expect(addButton(), 'no listener is offered there').not.to.exist;
+    expect(itemLabels()).to.eql([ 'Listener outside executionListeners: ${audit}' ]);
+    expect(errorIn(reasonEntry('Gateway_Camunda7Listener'))).to.equal(OUTSIDE_REASON);
+
+    await removeItem();
+
+    expect(group(), 'execution listeners group').not.to.exist;
+  }));
+
+  it('should flag a task listener on the process, and note an execution listener outside its element there as ignored', inject(async function(canvas, selection) {
+    await act(() => selection.select([]));
+    const process = canvas.getRootElement();
+
+    expect(itemLabels()).to.eql([
+      'Listener outside executionListeners: com.acme.ProcessStarted',
+      'Task listener "creating": process-task',
+    ]);
+    expect(errorIn(reasonEntry('Process_1', 0)), 'the engine ignores it there').not.to.exist;
+    expect(noteIn(reasonEntry('Process_1', 0))).to.equal(
+      'The engine runs no listener on the process itself and ignores this one. It can be removed.'
+    );
+    expect(errorIn(reasonEntry('Process_1', 1))).to.equal(TASK_LISTENER_REASON);
+    expect(hasErrorBadge(), 'badge of the group').to.be.true;
+
+    await removeItem(1);
+    expect(hasErrorBadge(), 'badge once the task listener is gone').to.be.false;
+
+    await removeItem(0);
+    expect(process.businessObject.extensionElements, 'extension elements').to.be.undefined;
   }));
 });
 

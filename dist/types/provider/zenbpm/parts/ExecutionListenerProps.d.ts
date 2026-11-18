@@ -1,8 +1,9 @@
 /**
  * The Execution listeners group: offered where the engine runs listeners,
  * where one more listener can always be created behind the ones there, and
- * shown on any element that has listeners, so that one the engine refuses or
- * ignores there can be removed. Null when neither applies.
+ * shown on any element that has listeners, those the engine reads nowhere
+ * included, so that one the engine refuses or ignores there can be removed.
+ * Null when neither applies.
  */
 export declare function createExecutionListenerGroup(element: any, injector: any): any | null;
 /**
