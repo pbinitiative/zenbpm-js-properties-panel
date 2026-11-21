@@ -4,7 +4,7 @@ import {
 } from '@bpmn-io/properties-panel';
 import { useService } from 'bpmn-js-properties-panel';
 
-import { getExtensionElement, removeExtensionElement } from '../../../util/ExtensionElementsUtil';
+import { ensureExtensionElement, getExtensionElement, removeExtensionElement } from '../../../util/ExtensionElementsUtil';
 import { validateJson } from '../../../util/ValidationUtil';
 
 const TYPE_PROPERTIES = 'zenbpm:Properties';
@@ -66,33 +66,10 @@ function upsertModelerProperty(
   const bo = element.businessObject;
   const commands: any[] = [];
 
-  // (1) ensure bpmn:ExtensionElements exists
-  let extensionElements = bo.extensionElements;
-  if (!extensionElements) {
-    extensionElements = bpmnFactory.create('bpmn:ExtensionElements', { values: [] });
-    extensionElements.$parent = bo;
-    commands.push({
-      cmd: 'element.updateModdleProperties',
-      context: { element, moddleElement: bo, properties: { extensionElements } },
-    });
-  }
+  // (1) ensure bpmn:ExtensionElements and the zenbpm:Properties container exist
+  const container = ensureExtensionElement(element, bo, TYPE_PROPERTIES, bpmnFactory, commands, { properties: [] });
 
-  // (2) ensure zenbpm:Properties container exists
-  let container = (extensionElements.values || []).find((e: any) => e.$instanceOf(TYPE_PROPERTIES));
-  if (!container) {
-    container = bpmnFactory.create(TYPE_PROPERTIES, { properties: [] });
-    container.$parent = extensionElements;
-    commands.push({
-      cmd: 'element.updateModdleProperties',
-      context: {
-        element,
-        moddleElement: extensionElements,
-        properties: { values: [...(extensionElements.values || []), container] },
-      },
-    });
-  }
-
-  // (3) update existing or create new
+  // (2) update existing or create new
   const fullName = MODELER_PREFIX + propertyName;
   const existing = (container.get('properties') || []).find((p: any) => p.get('name') === fullName);
   if (existing) {

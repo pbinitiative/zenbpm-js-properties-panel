@@ -27,6 +27,7 @@ exposing a field that the engine ignores is dead UI.
 | `bpmn:ErrorEventDefinition` | `errorRef` | (BPMN native) | ✅ bpmn-js default error group |
 | `bpmn:MessageEventDefinition` (name) | `messageRef` | (BPMN native) | ✅ bpmn-js default `Message` group + our `Subscription` entry (removed for Message Intermediate Throw Event, which is job-based) |
 | `bpmn:ConditionExpression` (sequence flow) | `conditionExpression` body | (BPMN native) | ✅ `Condition` group (FEEL) |
+| `TExecutionListener.EventType / Type / Retries / RetryBackoff` (`start` and `end` on service, send and user tasks, business rule tasks whose task definition names a type and which name no decision, and message intermediate throw events, none of them multi-instance; `end` on a start event directly under the process) | `eventType` / `type` / `retries` / `retryBackoff` attrs | `zenbpm:ExecutionListeners` / `zenbpm:ExecutionListener` | ✅ `Execution listeners` list group, over every `executionListeners` element of the element, and over those of its process for a pool. `retryBackoff` has no moddle attribute yet, as for `zenbpm:TaskDefinition`: it cannot be entered for a new listener, but one a listener came with is shown, validated and can be corrected or cleared |
 | `bpmn:Process` (version tag) | inline `zenbpm:VersionTag` child on Process | `zenbpm:VersionTag` | ✅ appended to `General` group |
 
 ---
@@ -73,7 +74,7 @@ them) or, in some cases, a deploy error.
 |---|---|
 | `zenbpm:Script` (ScriptTask implementation) | Engine explicitly rejects `bpmn:ScriptTask` at deploy (`unsupported_elements_test.go`) |
 | `zenbpm:AdHoc` (ad-hoc sub-process) | Engine has no `AdHoc` references in `pkg/bpmn/...` |
-| `zenbpm:ExecutionListener(s)` / `zenbpm:TaskListener(s)` | Not present in engine source |
+| `zenbpm:TaskListener(s)` | Engine refuses a task listener at deployment. None can be created; one a model came with is listed in the `Execution listeners` group with that reason, to be removed |
 | `zenbpm:ConditionalFilter` (conditional events) | Not present in engine source |
 | `zeebe:*` / camunda-cloud-only types | Out of scope — this package emits `zenbpm:*` only |
 
@@ -90,13 +91,16 @@ normalization:
   `zeebe:LoopCharacteristics`, `zeebe:Subscription`, `zeebe:FormDefinition`
   is rewritten to its `zenbpm:` equivalent and round-trips correctly.
 - Camunda-only types that have no `zenbpm:` counterpart (e.g. zeebe
-  `Header` / `Property` / `Script` / `AdHoc` / `ExecutionListener` /
-  `TaskListener` / `ConditionalFilter`) are passed through verbatim —
+  `Header` / `Property` / `Script` / `AdHoc` / `ConditionalFilter`) are
+  passed through verbatim —
   the editor does not surface them, but they are not corrupted on
   re-export either. Deploying such a file to the current ZenBPM engine
   will either silently drop the extension or, in the case of `Script` /
   `Signal` / `ReceiveTask`, fail at deploy time — which is a property of
   the engine, not the editor.
+- A zeebe `TaskListener` is passed through verbatim as well, and the
+  engine refuses a deployment with one. The editor does surface it, in
+  the `Execution listeners` group, with that reason and a delete button.
 
 ---
 

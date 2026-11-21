@@ -6,7 +6,7 @@ import {
   isTextAreaEntryEdited,
 } from '@bpmn-io/properties-panel';
 import { useService } from 'bpmn-js-properties-panel';
-import { getExtensionElement, removeExtensionElement } from '../../../util/ExtensionElementsUtil';
+import { ensureExtensionElement, getExtensionElement, removeExtensionElement } from '../../../util/ExtensionElementsUtil';
 import { isModelerPropertyName, validateJson } from '../../../util/ValidationUtil';
 import { isExampleDataPropertyName } from './ExampleDataProps';
 
@@ -87,34 +87,10 @@ function addProperty(element: any, bpmnFactory: any, commandStack: any, eventBus
   const bo = element.businessObject;
   const commands: any[] = [];
 
-  let extensionElements = bo.extensionElements;
+  // (1) ensure bpmn:ExtensionElements and the zenbpm:Properties container (re-use if present)
+  const properties = ensureExtensionElement(element, bo, TYPE_PROPERTIES, bpmnFactory, commands, { properties: [] });
 
-  // (1) ensure bpmn:ExtensionElements
-  if (!extensionElements) {
-    extensionElements = bpmnFactory.create('bpmn:ExtensionElements', { values: [] });
-    extensionElements.$parent = bo;
-    commands.push({
-      cmd: 'element.updateModdleProperties',
-      context: { element, moddleElement: bo, properties: { extensionElements } },
-    });
-  }
-
-  // (2) ensure zenbpm:Properties container (re-use if present)
-  let properties = (extensionElements.values || []).find((e: any) => e.$instanceOf(TYPE_PROPERTIES));
-  if (!properties) {
-    properties = bpmnFactory.create(TYPE_PROPERTIES, { properties: [] });
-    properties.$parent = extensionElements;
-    commands.push({
-      cmd: 'element.updateModdleProperties',
-      context: {
-        element,
-        moddleElement: extensionElements,
-        properties: { values: [...(extensionElements.values || []), properties] },
-      },
-    });
-  }
-
-  // (3) create the new zenbpm:Property and append it to the container's `properties` list
+  // (2) create the new zenbpm:Property and append it to the container's `properties` list
   const created = bpmnFactory.create(TYPE_PROPERTY, { name: '', value: '' });
   created.$parent = properties;
   commands.push({

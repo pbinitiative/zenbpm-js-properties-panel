@@ -13,6 +13,7 @@ import { CorrelationKeyProps } from './parts/CorrelationKeyProps';
 import { ExtensionPropertiesGroup } from './parts/ExtensionPropertiesProps';
 import { ExampleDataProps } from './parts/ExampleDataProps';
 import { BusinessKeyProps } from './parts/BusinessKeyProps';
+import { createExecutionListenerGroup, reportSourcesOfChangedSequenceFlows } from './parts/ExecutionListenerProps';
 
 const PROVIDER_PRIORITY = 500;
 
@@ -85,6 +86,9 @@ export class ZenBpmPropertiesProvider {
     setupFormSaveHandler(injector);
 
     removeUnsupportedPropertiesOnImport(injector);
+
+    // Whether a listener can run depends on the outgoing sequence flows of its element.
+    reportSourcesOfChangedSequenceFlows(injector);
   }
 
   getGroups(element: any) {
@@ -161,6 +165,12 @@ export class ZenBpmPropertiesProvider {
           component: Group,
         });
       }
+
+      // ── Execution listeners ──────────────────────────────────────────────
+      // Offered where the engine runs listeners, and shown on any element that
+      // has listeners, so that one the engine does not run there is removable.
+      const executionListenerGroup = createExecutionListenerGroup(element, this._injector);
+      if (executionListenerGroup) groups.push(executionListenerGroup);
 
       // ── Input mapping ────────────────────────────────────────────────────
       const inputGroup = createInputMappingGroup(element, this._injector);

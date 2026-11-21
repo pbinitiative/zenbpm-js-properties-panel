@@ -9,6 +9,57 @@ export function getExtensionElement(bo: any, type: string): any {
 }
 
 /**
+ * Answer the `bpmn:ExtensionElements` of `bo`. When it is missing, push the
+ * command creating it onto `commands` for one
+ * `properties-panel.multi-command-executor` step, and answer the new one,
+ * which a later command of the same step can update.
+ */
+export function ensureExtensionElements(element: any, bo: any, bpmnFactory: any, commands: any[]): any {
+  if (bo.extensionElements) return bo.extensionElements;
+
+  const extensionElements = bpmnFactory.create('bpmn:ExtensionElements', { values: [] });
+  extensionElements.$parent = bo;
+  commands.push({
+    cmd: 'element.updateModdleProperties',
+    context: { element, moddleElement: bo, properties: { extensionElements } },
+  });
+  return extensionElements;
+}
+
+/**
+ * Answer the extension element of `type` of `bo`. When it is missing, push
+ * the commands creating it with `props`, and `bpmn:ExtensionElements` too
+ * where that is missing, onto `commands` for one
+ * `properties-panel.multi-command-executor` step, and answer the new element,
+ * which a later command of the same step can update.
+ */
+export function ensureExtensionElement(
+  element: any,
+  bo: any,
+  type: string,
+  bpmnFactory: any,
+  commands: any[],
+  props: Record<string, any> = {},
+): any {
+  const extensionElements = ensureExtensionElements(element, bo, bpmnFactory, commands);
+
+  const existing = (extensionElements.values || []).find((e: any) => e.$instanceOf(type));
+  if (existing) return existing;
+
+  const created = bpmnFactory.create(type, props);
+  created.$parent = extensionElements;
+  commands.push({
+    cmd: 'element.updateModdleProperties',
+    context: {
+      element,
+      moddleElement: extensionElements,
+      properties: { values: [...(extensionElements.values || []), created] },
+    },
+  });
+  return created;
+}
+
+/**
  * Update properties on an existing extension element, or create a new one
  * inside bpmn:ExtensionElements if it does not yet exist.
  *
@@ -24,38 +75,15 @@ export function updateExtensionElementProps(
   commandStack: any,
 ): void {
   const commands: any[] = [];
-  let extensionElements = bo.extensionElements;
-
-  // (1) create bpmn:ExtensionElements container if missing
-  if (!extensionElements) {
-    extensionElements = bpmnFactory.create('bpmn:ExtensionElements', { values: [] });
-    extensionElements.$parent = bo;
-    commands.push({
-      cmd: 'element.updateModdleProperties',
-      context: { element, moddleElement: bo, properties: { extensionElements } },
-    });
-  }
-
-  const existing = (extensionElements.values || []).find((e: any) => e.$instanceOf(type));
+  const existing = getExtensionElement(bo, type);
 
   if (existing) {
-    // (2a) update properties on the existing element
     commands.push({
       cmd: 'element.updateModdleProperties',
       context: { element, moddleElement: existing, properties: props },
     });
   } else {
-    // (2b) create and attach a new extension element
-    const created = bpmnFactory.create(type, props);
-    created.$parent = extensionElements;
-    commands.push({
-      cmd: 'element.updateModdleProperties',
-      context: {
-        element,
-        moddleElement: extensionElements,
-        properties: { values: [...(extensionElements.values || []), created] },
-      },
-    });
+    ensureExtensionElement(element, bo, type, bpmnFactory, commands, props);
   }
 
   commandStack.execute('properties-panel.multi-command-executor', commands);
@@ -76,7 +104,24 @@ export function removeExtensionElement(
   const matching = (extensionElements.values || []).filter((e: any) => e.$instanceOf(type));
   if (!matching.length) return;
 
-  const remainingValues = (extensionElements.values || []).filter((e: any) => !e.$instanceOf(type));
+  keepExtensionValues(
+    element, bo, (extensionElements.values || []).filter((e: any) => !e.$instanceOf(type)), commandStack,
+  );
+}
+
+/**
+ * Remove one extension element of `bo` and leave every other one, those of
+ * its own type included. No-op if `bo` does not carry it. Executes a single
+ * undoable command.
+ */
+export function removeExtensionValue(element: any, bo: any, value: any, commandStack: any): void {
+  const values: any[] = bo.extensionElements?.values || [];
+  if (!values.includes(value)) return;
+
+  keepExtensionValues(element, bo, values.filter((other: any) => other !== value), commandStack);
+}
+
+function keepExtensionValues(element: any, bo: any, remainingValues: any[], commandStack: any): void {
   if (remainingValues.length === 0) {
     // Removing the last value would leave an empty <bpmn:extensionElements>
     // container (dirty XML). Drop the container from the parent instead —
@@ -89,7 +134,7 @@ export function removeExtensionElement(
   } else {
     commandStack.execute('element.updateModdleProperties', {
       element,
-      moddleElement: extensionElements,
+      moddleElement: bo.extensionElements,
       properties: { values: remainingValues },
     });
   }
@@ -113,17 +158,7 @@ export function switchExtensionElement(
 ): void {
   const commands: any[] = [];
 
-  let extensionElements = bo.extensionElements;
-
-  // (1) create bpmn:ExtensionElements container if missing
-  if (!extensionElements) {
-    extensionElements = bpmnFactory.create('bpmn:ExtensionElements', { values: [] });
-    extensionElements.$parent = bo;
-    commands.push({
-      cmd: 'element.updateModdleProperties',
-      context: { element, moddleElement: bo, properties: { extensionElements } },
-    });
-  }
+  const extensionElements = ensureExtensionElements(element, bo, bpmnFactory, commands);
 
   const currentValues: any[] = extensionElements.values || [];
   const hasRemoveType = currentValues.some((e: any) => e.$instanceOf(removeType));

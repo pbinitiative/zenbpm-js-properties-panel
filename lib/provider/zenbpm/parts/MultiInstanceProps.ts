@@ -15,7 +15,7 @@ const TYPE = 'zenbpm:LoopCharacteristics';
 /**
  * Return the bpmn:MultiInstanceLoopCharacteristics of an element, or null.
  */
-function getMultiInstanceLoopCharacteristics(element: any): any {
+export function getMultiInstanceLoopCharacteristics(element: any): any {
   const lc = element.businessObject?.loopCharacteristics;
   if (!lc || !lc.$instanceOf('bpmn:MultiInstanceLoopCharacteristics')) return null;
   return lc;

@@ -1,4 +1,8 @@
 /**
+ * Return the bpmn:MultiInstanceLoopCharacteristics of an element, or null.
+ */
+export declare function getMultiInstanceLoopCharacteristics(element: any): any;
+/**
  * FEEL expression — the collection to iterate over (e.g. `= items`)
  */
 declare function InputCollectionEntry(props: any): any;
