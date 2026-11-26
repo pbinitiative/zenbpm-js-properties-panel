@@ -1,4 +1,4 @@
-import { Group, ListGroup } from '@bpmn-io/properties-panel';
+import { Group } from '@bpmn-io/properties-panel';
 import { ZenFormProps, setupFormSaveHandler } from './parts/ZenFormProps';
 import { TaskDefinitionProps, isMessageThrowEvent, isServiceTaskLike } from './parts/TaskDefinitionProps';
 import { AssignmentDefinitionProps } from './parts/AssignmentDefinitionProps';
@@ -14,6 +14,7 @@ import { ExtensionPropertiesGroup } from './parts/ExtensionPropertiesProps';
 import { ExampleDataProps } from './parts/ExampleDataProps';
 import { BusinessKeyProps } from './parts/BusinessKeyProps';
 import { createExecutionListenerGroup, reportSourcesOfChangedSequenceFlows } from './parts/ExecutionListenerProps';
+import { TimerProps } from './parts/TimerProps';
 
 const PROVIDER_PRIORITY = 500;
 
@@ -243,6 +244,25 @@ export class ZenBpmPropertiesProvider {
             id: 'zenbpm-condition',
             label: translate('Condition'),
             entries: conditionEntries,
+            component: Group,
+          });
+        }
+      }
+
+      // ── Timer ────────────────────────────────────────────────────────────
+      // The stock 'timer' group offers the timer value as a plain text field.
+      // The engine also takes a FEEL expression there, so the entries are
+      // replaced by ones whose value is either static or a FEEL expression.
+      const timerEntries = TimerProps(element);
+      if (timerEntries.length) {
+        const timerGroup = groups.find((g: any) => g.id === 'timer');
+        if (timerGroup) {
+          timerGroup.entries = timerEntries;
+        } else {
+          groups.push({
+            id: 'timer',
+            label: translate('Timer'),
+            entries: timerEntries,
             component: Group,
           });
         }
