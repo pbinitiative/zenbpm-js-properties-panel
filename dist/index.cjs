@@ -2311,6 +2311,190 @@ function reportSourcesOfChangedSequenceFlows(injector) {
     });
 }
 
+/**
+ * Timer group of the ZenBPM engine.
+ *
+ * The stock bpmn-js-properties-panel offers the value of a timer event
+ * definition (timeDate / timeDuration / timeCycle) as a plain text field. The
+ * engine also takes a FEEL expression there: a value starting with `=` is
+ * evaluated against the variables of the process instance when the timer is
+ * created, any other value is a literal. These entries keep the ids and the
+ * model of the stock ones (a `bpmn:FormalExpression` whose body is the value,
+ * the `=` included) and only turn the value into a field which is either
+ * static or a FEEL expression.
+ */
+// in the order the stock provider reads them
+const TIMER_DEFINITION_TYPES = ['timeDate', 'timeCycle', 'timeDuration'];
+const TIMER_ELEMENT_TYPES = ['bpmn:StartEvent', 'bpmn:IntermediateCatchEvent', 'bpmn:BoundaryEvent'];
+/**
+ * The `bpmn:TimerEventDefinition` of the element, or `undefined` if it has
+ * none.
+ */
+function getTimerEventDefinition(element) {
+    const eventDefinitions = element?.businessObject?.eventDefinitions || [];
+    return eventDefinitions.find((definition) => definition.$instanceOf('bpmn:TimerEventDefinition'));
+}
+/**
+ * Which of timeDate / timeCycle / timeDuration the timer event definition
+ * carries, or `undefined` if none is set yet.
+ */
+function getTimerDefinitionType(timerEventDefinition) {
+    if (!timerEventDefinition)
+        return undefined;
+    return TIMER_DEFINITION_TYPES.find((type) => timerEventDefinition.get(type) !== undefined);
+}
+/**
+ * Whether the element is the start event of a process itself, as opposed to
+ * that of an event sub-process. The engine creates its timer when the process
+ * is deployed, where no process instance and so no variables exist.
+ */
+function isProcessStartEvent(element) {
+    const bo = element?.businessObject;
+    if (!bo || !bo.$instanceOf('bpmn:StartEvent'))
+        return false;
+    return !bo.$parent?.$instanceOf('bpmn:SubProcess');
+}
+function isTimerSupported(element) {
+    const bo = element?.businessObject;
+    if (!bo)
+        return false;
+    return TIMER_ELEMENT_TYPES.some((type) => bo.$instanceOf(type)) && !!getTimerEventDefinition(element);
+}
+function createTimerFormalExpression(bpmnFactory, timerEventDefinition, body) {
+    const formalExpression = bpmnFactory.create('bpmn:FormalExpression', { body });
+    formalExpression.$parent = timerEventDefinition;
+    return formalExpression;
+}
+function TimerTypeEntry(props) {
+    const { element } = props;
+    const commandStack = bpmnJsPropertiesPanel.useService('commandStack');
+    const bpmnFactory = bpmnJsPropertiesPanel.useService('bpmnFactory');
+    const translate = bpmnJsPropertiesPanel.useService('translate');
+    const timerEventDefinition = getTimerEventDefinition(element);
+    const timerDefinitionType = getTimerDefinitionType(timerEventDefinition);
+    const getValue = () => timerDefinitionType || '';
+    const setValue = (value) => {
+        if (value === (timerDefinitionType || ''))
+            return;
+        // one type at a time: the chosen one starts empty, the others are removed
+        const properties = {
+            timeDuration: undefined,
+            timeDate: undefined,
+            timeCycle: undefined,
+        };
+        if (value !== '') {
+            properties[value] = createTimerFormalExpression(bpmnFactory, timerEventDefinition);
+        }
+        commandStack.execute('element.updateModdleProperties', {
+            element,
+            moddleElement: timerEventDefinition,
+            properties,
+        });
+    };
+    // Every type is offered on every element: which combinations run is the
+    // engine's to say, and it takes more of them than the Zeebe provider offers.
+    const getOptions = () => [
+        { value: '', label: translate('<none>') },
+        { value: 'timeDate', label: translate('Date') },
+        { value: 'timeDuration', label: translate('Duration') },
+        { value: 'timeCycle', label: translate('Cycle') },
+    ];
+    return propertiesPanel.SelectEntry({
+        element,
+        id: 'timerEventDefinitionType',
+        label: translate('Type'),
+        getValue,
+        setValue,
+        getOptions,
+    });
+}
+function TimerValueEntry(props) {
+    const { element } = props;
+    const commandStack = bpmnJsPropertiesPanel.useService('commandStack');
+    const bpmnFactory = bpmnJsPropertiesPanel.useService('bpmnFactory');
+    const translate = bpmnJsPropertiesPanel.useService('translate');
+    const debounce = bpmnJsPropertiesPanel.useService('debounceInput');
+    const timerEventDefinition = getTimerEventDefinition(element);
+    const timerDefinitionType = getTimerDefinitionType(timerEventDefinition);
+    const formalExpression = timerEventDefinition.get(timerDefinitionType);
+    const getValue = () => formalExpression && formalExpression.get('body');
+    // The body is updated in place and kept when it is emptied: removing the
+    // expression would unset the type chosen above.
+    const setValue = (value) => {
+        if (!formalExpression) {
+            commandStack.execute('element.updateModdleProperties', {
+                element,
+                moddleElement: timerEventDefinition,
+                properties: { [timerDefinitionType]: createTimerFormalExpression(bpmnFactory, timerEventDefinition, value) },
+            });
+            return;
+        }
+        commandStack.execute('element.updateModdleProperties', {
+            element,
+            moddleElement: formalExpression,
+            properties: { body: value },
+        });
+    };
+    return propertiesPanel.FeelEntry({
+        element,
+        id: 'timerEventDefinitionValue',
+        label: translate('Value'),
+        feel: 'optional',
+        getValue,
+        setValue,
+        debounce,
+        tooltip: getTimerValueTooltip(timerDefinitionType, translate, isProcessStartEvent(element)),
+    });
+}
+function example(code, description) {
+    return preact.createElement('li', null, preact.createElement('code', null, code), ' - ', description);
+}
+/**
+ * What the value of a timer may be, with examples. The start event of a
+ * process is told apart: its expression has no variables to read, and the
+ * engine takes no duration there.
+ */
+function getTimerValueTooltip(timerDefinitionType, translate, processStart = false) {
+    const evaluated = processStart
+        ? translate('The start event of a process has no variables: an expression is evaluated when the process is deployed and can only use functions such as now().')
+        : translate('The value is evaluated when the timer is created.');
+    switch (timerDefinitionType) {
+        case 'timeDate':
+            return preact.createElement('div', null, preact.createElement('p', null, translate('A specific point in time: an ISO 8601 date and time, or a FEEL expression.')), preact.createElement('ul', null, example('2026-10-01T12:00:00Z', translate('UTC time')), example('2026-10-02T08:09:40+02:00', translate('UTC plus 2 hours zone offset')), ...(processStart
+                ? [example('=now() + duration("PT1H")', translate('an hour after the process is deployed'))]
+                : [
+                    example('=dueAt', translate('the date and time a process variable holds')),
+                    example('=date and time(sentAt) + duration("P3D")', translate('three days after a process variable')),
+                ])), preact.createElement('p', null, evaluated));
+        case 'timeDuration':
+            if (processStart) {
+                return preact.createElement('div', null, preact.createElement('p', null, translate('The engine takes no duration on the start event of a process: there is nothing to measure it from. Use a date or a cycle.')));
+            }
+            return preact.createElement('div', null, preact.createElement('p', null, translate('A time period: an ISO 8601 duration, or a FEEL expression.')), preact.createElement('ul', null, example('PT15S', translate('15 seconds')), example('PT1H30M', translate('1 hour and 30 minutes')), example('P14D', translate('14 days')), example('=reminderAfter', translate('the duration a process variable holds')), example('=date and time(deadline) - now()', translate('the time left until a process variable; at once if it has passed'))), preact.createElement('p', null, evaluated));
+        case 'timeCycle':
+            return preact.createElement('div', null, preact.createElement('p', null, translate('A cycle: an ISO 8601 repeating interval, a cron expression, or a FEEL expression.')), preact.createElement('ul', null, example('R5/PT10S', translate('every 10 seconds, up to 5 times')), example('R/P1D', translate('every day, infinitely')), example('0 0 9-17 * * MON-FRI', translate('every hour on the hour from 9 a.m. to 5 p.m., Monday to Friday, in the time zone of the engine')), ...(processStart ? [] : [example('=reminderCycle', translate('the cycle a process variable holds'))])), preact.createElement('p', null, processStart
+                ? evaluated
+                : translate('The value is evaluated once, when the first timer of the cycle is created.')));
+    }
+    return undefined;
+}
+// ─── exported entry list ─────────────────────────────────────────────────────
+/**
+ * Entries of the timer group: the type of the timer, and its value once a type
+ * is chosen. Empty for an element without a timer event definition.
+ */
+function TimerProps(element) {
+    if (!isTimerSupported(element))
+        return [];
+    const entries = [
+        { id: 'timerEventDefinitionType', component: TimerTypeEntry, isEdited: propertiesPanel.isSelectEntryEdited },
+    ];
+    if (getTimerDefinitionType(getTimerEventDefinition(element))) {
+        entries.push({ id: 'timerEventDefinitionValue', component: TimerValueEntry, isEdited: propertiesPanel.isFeelEntryEdited });
+    }
+    return entries;
+}
+
 const PROVIDER_PRIORITY = 500;
 /**
  * Drop extension attributes which are no longer supported by ZenBPM when a
@@ -2515,6 +2699,25 @@ class ZenBpmPropertiesProvider {
                         id: 'zenbpm-condition',
                         label: translate('Condition'),
                         entries: conditionEntries,
+                        component: propertiesPanel.Group,
+                    });
+                }
+            }
+            // ── Timer ────────────────────────────────────────────────────────────
+            // The stock 'timer' group offers the timer value as a plain text field.
+            // The engine also takes a FEEL expression there, so the entries are
+            // replaced by ones whose value is either static or a FEEL expression.
+            const timerEntries = TimerProps(element);
+            if (timerEntries.length) {
+                const timerGroup = groups.find((g) => g.id === 'timer');
+                if (timerGroup) {
+                    timerGroup.entries = timerEntries;
+                }
+                else {
+                    groups.push({
+                        id: 'timer',
+                        label: translate('Timer'),
+                        entries: timerEntries,
                         component: propertiesPanel.Group,
                     });
                 }

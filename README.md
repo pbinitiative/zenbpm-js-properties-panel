@@ -24,6 +24,7 @@ It reads and writes ZenBPM extension elements (defined by [`@pbinitiative/zenbpm
 | Multi-instance elements | **Multi-instance** | Input collection, Element variable, Output collection, Output element, Completion condition |
 | Sequence flows / boundary events | **Condition** | Condition expression (FEEL) |
 | Service / Send / User Task, Business Rule Task — Job worker with a Type, Message Intermediate Throw Event (none of them multi-instance), Start Event directly under the process, and any element that has listeners | **Execution listeners** | Event type (Start / End; End only on a start event), Type, Retries per listener, and Retry backoff for a listener which came with one (*Create* adds a listener behind the ones there; the delete button of a listener removes it) |
+| Timer events (Start Event, Intermediate Catch Event, Boundary Event) | **Timer** | Type (Date / Duration / Cycle), Value (static or FEEL) |
 | Process | **Version tag** | Tag value |
 | Message catch events (Intermediate Catch Event, Boundary Event), Start Event in event sub-process | **Message** | Subscription correlation key (FEEL) |
 | Any element | **Extension properties** | Key/value pairs (`name` / `value`) |
@@ -37,6 +38,8 @@ It reads and writes ZenBPM extension elements (defined by [`@pbinitiative/zenbpm
 > \* The **Version tag** text field only appears when you select *Version tag* from the **Binding** dropdown. The Binding dropdown has two options: *Latest* (always use the newest deployed version) and *Version tag* (use a specific version identified by a tag string).
 
 > A Message Intermediate Throw Event is executed as a job, like a Send Task, so it shows **Task definition** instead of the stock **Message** group (global message reference).
+
+> The **Timer** group keeps the stock Type select and turns the Value into a field which is either static or a FEEL expression: a value starting with `=` (`=dueAt`, `=date and time(sentAt) + duration("P3D")`) is evaluated by the engine against the variables of the process instance when the timer is created, any other value (`PT15M`, `R3/PT10S`, a cron expression) is a literal. The `=` is stored with the value, as the body of `bpmn:timeDate` / `bpmn:timeDuration` / `bpmn:timeCycle`. Every type is offered on every timer event; which combinations run is the engine's to say. The tooltip of the Value says what the engine takes where: on the start event of a process, whose timer is created with the deployment, an expression has no variables to read and a duration is not taken at all.
 
 ---
 

@@ -23,7 +23,7 @@ exposing a field that the engine ignores is dead UI.
 | `TTaskDefinition.Retries` | `retries` attr | `zenbpm:TaskDefinition` | ✅ `Task definition` group on worker tasks (incl. Message Intermediate Throw Event) only |
 | `TSubscription.CorrelationKey` | `correlationKey` attr | `zenbpm:Subscription` | ✅ `Message` group (catch/boundary/event-sub-process start) |
 | `TLoopCharacteristics.*` | `inputCollection` / `inputElement` / `outputCollection` / `outputElement` | `zenbpm:LoopCharacteristics` | ✅ `Multi-instance` group |
-| `bpmn:TimerEventDefinition` (ISO-8601) | `timeDate` / `timeDuration` / `timeCycle` | (BPMN native) | ✅ bpmn-js default timer group |
+| `bpmn:TimerEventDefinition` (ISO-8601, cron or a FEEL expression starting with `=`) | `timeDate` / `timeDuration` / `timeCycle` | (BPMN native) | ✅ `Timer` group: stock Type select, Value as a static-or-FEEL field |
 | `bpmn:ErrorEventDefinition` | `errorRef` | (BPMN native) | ✅ bpmn-js default error group |
 | `bpmn:MessageEventDefinition` (name) | `messageRef` | (BPMN native) | ✅ bpmn-js default `Message` group + our `Subscription` entry (removed for Message Intermediate Throw Event, which is job-based) |
 | `bpmn:ConditionExpression` (sequence flow) | `conditionExpression` body | (BPMN native) | ✅ `Condition` group (FEEL) |
@@ -35,9 +35,11 @@ exposing a field that the engine ignores is dead UI.
 ## Engine features with no panel coverage (and why)
 
 None — every Go binding the engine reads has a corresponding editor surface.
-Where the engine uses the bare BPMN element (Timer / Error / Message), the
-stock bpmn-js-properties-panel entry is sufficient; we only replace it when
-we add a ZenBPM-specific extension on top (Message → Subscription).
+Where the engine uses the bare BPMN element (Error / Message), the stock
+bpmn-js-properties-panel entry is sufficient; we only replace it when we add a
+ZenBPM-specific extension on top (Message → Subscription) or when the engine
+reads more than the stock entry edits (Timer → a value which may be a FEEL
+expression).
 
 ---
 

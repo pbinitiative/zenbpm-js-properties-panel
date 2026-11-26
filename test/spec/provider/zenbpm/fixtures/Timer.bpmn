@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xmlns:zenbpm="http://zenbpm.pbinitiative.org/1.0"
+                  id="Definitions_1"
+                  targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1" isExecutable="true">
+    <bpmn:startEvent id="TimerStart_Process" name="Every night">
+      <bpmn:timerEventDefinition id="TimerEventDefinition_start">
+        <bpmn:timeCycle xsi:type="bpmn:tFormalExpression">0 2 * * *</bpmn:timeCycle>
+      </bpmn:timerEventDefinition>
+    </bpmn:startEvent>
+    <bpmn:intermediateCatchEvent id="TimerCatch_Literal" name="15 minutes">
+      <bpmn:timerEventDefinition id="TimerEventDefinition_literal">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT15M</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:intermediateCatchEvent id="TimerCatch_Expression" name="Due date">
+      <bpmn:timerEventDefinition id="TimerEventDefinition_expression">
+        <bpmn:timeDate xsi:type="bpmn:tFormalExpression">=dueAt</bpmn:timeDate>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:intermediateCatchEvent id="TimerCatch_Empty" name="Not set yet">
+      <bpmn:timerEventDefinition id="TimerEventDefinition_empty" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:intermediateCatchEvent id="MessageCatch_1" name="Message">
+      <bpmn:messageEventDefinition id="MessageEventDefinition_1" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:userTask id="UserTask_1" name="Approve" />
+    <bpmn:boundaryEvent id="TimerBoundary_Interrupting" name="Timeout" attachedToRef="UserTask_1">
+      <bpmn:timerEventDefinition id="TimerEventDefinition_interrupting">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">=waitFor</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:boundaryEvent id="TimerBoundary_NonInterrupting" name="Reminder" cancelActivity="false" attachedToRef="UserTask_1">
+      <bpmn:timerEventDefinition id="TimerEventDefinition_nonInterrupting">
+        <bpmn:timeCycle xsi:type="bpmn:tFormalExpression">=reminderCycle</bpmn:timeCycle>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:subProcess id="EventSubProcess_1" triggeredByEvent="true">
+      <bpmn:startEvent id="TimerStart_EventSubProcess" name="Three times" isInterrupting="false">
+        <bpmn:timerEventDefinition id="TimerEventDefinition_eventSubProcess">
+          <bpmn:timeCycle xsi:type="bpmn:tFormalExpression">R3/PT10S</bpmn:timeCycle>
+        </bpmn:timerEventDefinition>
+      </bpmn:startEvent>
+    </bpmn:subProcess>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="TimerStart_Process_di" bpmnElement="TimerStart_Process">
+        <dc:Bounds x="152" y="102" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TimerCatch_Literal_di" bpmnElement="TimerCatch_Literal">
+        <dc:Bounds x="252" y="102" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TimerCatch_Expression_di" bpmnElement="TimerCatch_Expression">
+        <dc:Bounds x="352" y="102" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TimerCatch_Empty_di" bpmnElement="TimerCatch_Empty">
+        <dc:Bounds x="452" y="102" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="MessageCatch_1_di" bpmnElement="MessageCatch_1">
+        <dc:Bounds x="552" y="102" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_1_di" bpmnElement="UserTask_1">
+        <dc:Bounds x="150" y="200" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TimerBoundary_Interrupting_di" bpmnElement="TimerBoundary_Interrupting">
+        <dc:Bounds x="162" y="262" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TimerBoundary_NonInterrupting_di" bpmnElement="TimerBoundary_NonInterrupting">
+        <dc:Bounds x="212" y="262" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EventSubProcess_1_di" bpmnElement="EventSubProcess_1" isExpanded="true">
+        <dc:Bounds x="320" y="200" width="260" height="120" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TimerStart_EventSubProcess_di" bpmnElement="TimerStart_EventSubProcess">
+        <dc:Bounds x="352" y="242" width="36" height="36" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
